@@ -13,7 +13,8 @@ import (
     
     {{if .import}}"{{.import}}"{{end}}
 )
-        
+
+// {{.Name}}Loader batches and caches requests          
 type {{.Name}}Loader struct {
 	// this method provides the data for the loader
 	fetch func(keys []{{.keyType}}) ([]*{{.type}}, []error)
@@ -43,7 +44,6 @@ type {{.name}}Batch struct {
 	error   []error
 	closing bool
 	done    chan struct{}
-	timer   time.Timer
 }
 
 // Load a {{.Name}} by key, batching and caching will be applied automatically

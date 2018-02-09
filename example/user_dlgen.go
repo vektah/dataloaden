@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// UserLoader batches and caches requests
 type UserLoader struct {
 	// this method provides the data for the loader
 	fetch func(keys []string) ([]*User, []error)
@@ -36,7 +37,6 @@ type userBatch struct {
 	error   []error
 	closing bool
 	done    chan struct{}
-	timer   time.Timer
 }
 
 // Load a User by key, batching and caching will be applied automatically
