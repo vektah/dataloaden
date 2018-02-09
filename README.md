@@ -1,4 +1,5 @@
-### The DATALOADer gENerator [![CircleCI](https://circleci.com/gh/Vektah/dataloaden.svg?style=svg)](https://circleci.com/gh/Vektah/dataloaden) [![Go Report Card](https://goreportcard.com/badge/github.com/vektah/dataloaden)](https://goreportcard.com/report/github.com/vektah/dataloaden)
+### The DATALOADer gENerator [![CircleCI](https://circleci.com/gh/Vektah/dataloaden.svg?style=svg)](https://circleci.com/gh/Vektah/dataloaden) [![Go Report Card](https://goreportcard.com/badge/github.com/vektah/dataloaden)](https://goreportcard.com/report/github.com/vektah/dataloaden) [![codecov](https://codecov.io/gh/vektah/dataloaden/branch/master/graph/badge.svg)](https://codecov.io/gh/vektah/dataloaden)
+
 
 This is a tool for generating type safe data loaders for go, inspired by https://github.com/facebook/dataloader.
 
