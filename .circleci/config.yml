@@ -1,0 +1,40 @@
+version: 2.0
+jobs:
+  go1.6: &base
+    docker:
+      - image: golang:1.6
+    working_directory: /go/src/github.com/vektah/goparsify
+    steps: &steps
+      - checkout
+      - run: go get -u github.com/golang/dep/cmd/dep github.com/alecthomas/gometalinter && gometalinter --install
+      - run: dep ensure --vendor-only
+      - run: go generate ./...
+      - run: go vet ./...
+      - run: go test -v ./...
+      - run: gometalinter . --disable gocyclo
+
+  go1.7: *base
+    docker:
+      - image: golang:1.7
+
+  go1.8: *base
+    docker:
+      - image: golang:1.8
+
+  go1.9: *base
+    docker:
+      - image: golang:1.9
+
+  go1.10: *base
+    docker:
+      - image: golang:1.10
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - "go1.6"
+      - "go1.7"
+      - "go1.8"
+      - "go1.9"
+      - "go1.10"
