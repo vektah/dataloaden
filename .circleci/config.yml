@@ -17,6 +17,7 @@ jobs:
       - run: go vet ./example/...
       - run: go test -bench=. -benchmem -v ./example/...
       - run: go test -bench=. -benchmem -v ./example/... -race
+      - run: go test -coverprofile=coverage.txt -covermode=atomic ./example && bash <(curl -s https://codecov.io/bash)
       - run: gometalinter --disable gocyclo ./example
 
   go1.8:
