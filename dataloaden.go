@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -13,14 +14,19 @@ import (
 	"golang.org/x/tools/imports"
 )
 
+var (
+	keyType = flag.String("keys", "int", "what type should the keys be")
+)
+
 func main() {
-	if len(os.Args) != 2 {
-		fmt.Fprintln(os.Stderr, "usage: dataloaden <type name>")
-		fmt.Fprintln(os.Stderr, "	type name should be fully qualified, eg github.com/vektah/dataloaden/example.User")
+	flag.Parse()
+
+	if flag.NArg() != 1 {
+		flag.Usage()
 		os.Exit(1)
 	}
 
-	data, err := getData(os.Args[1])
+	data, err := getData(flag.Arg(0))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(2)
@@ -47,6 +53,7 @@ func getData(typeName string) (map[string]string, error) {
 	data["package"] = filepath.Base(wd)
 	data["Name"] = parts[len(parts)-1]
 	data["name"] = lcFirst(data["Name"])
+	data["keyType"] = *keyType
 
 	// if we are inside the same package as the type we don't need an import and can refer directly to the type
 	fmt.Println(wd, pkgName)

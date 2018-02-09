@@ -2,16 +2,20 @@
 
 This is a tool for generating type safe data loaders for go, inspired by https://github.com/facebook/dataloader.
 
+The intended use is in graphql servers, to reduce the number of queries being sent to the database. These dataloader
+objects should be request scoped and short lived. They should be cheap to create in every request even if they dont
+get used.
 
 #### Getting started
 
 First grab it:
 ```bash
 go get -u github.com/vektah/dataloaden
+```
 
-
-# from inside the package you want to have the dataloader in:
-dataloaden -type github.com/dataloaden/example.User
+then from inside the package you want to have the dataloader in:
+```bash
+dataloaden github.com/dataloaden/example.User
 ```
 
 In another file in the same package, create the constructor method:
@@ -39,6 +43,9 @@ loader := NewLoader()
 
 user, err := loader.Load("123")
 ``` 
+
+This method will block for a short amount of time, waiting for any other similar requests to come in, call your fetch
+function once. It also caches values and wont request duplicates in a batch.   
 
 #### Wait, how do I use context with this?
 
