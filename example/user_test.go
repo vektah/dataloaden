@@ -137,4 +137,21 @@ func TestUserLoader(t *testing.T) {
 		require.Len(t, fetches[2], 3) // E1 U9 E2 in some random order
 	})
 
+	t.Run("primed reads dont hit the fetcher", func(t *testing.T) {
+		dl.Prime("U99", &User{ID: "U99", Name: "Primed user"})
+		u, err := dl.Load("U99")
+		require.NoError(t, err)
+		require.Equal(t, "Primed user", u.Name)
+
+		require.Len(t, fetches, 3)
+	})
+
+	t.Run("cleared results will go back to the fetcher", func(t *testing.T) {
+		dl.Clear("U99")
+		u, err := dl.Load("U99")
+		require.NoError(t, err)
+		require.Equal(t, "user U99", u.Name)
+
+		require.Len(t, fetches, 4)
+	})
 }

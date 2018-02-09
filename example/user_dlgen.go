@@ -95,6 +95,23 @@ func (l *UserLoader) LoadAll(keys []string) ([]*User, []error) {
 	return users, errors
 }
 
+// Prime the cache with the provided key and value. If the key already exists, no change is made.
+// (To forcefully prime the cache, clear the key first with loader.clear(key).prime(key, value).)
+func (l *UserLoader) Prime(key string, value *User) {
+	l.mu.Lock()
+	if _, found := l.cache[key]; !found {
+		l.cache[key] = value
+	}
+	l.mu.Unlock()
+}
+
+// Clear the value at key from the cache, if it exists
+func (l *UserLoader) Clear(key string) {
+	l.mu.Lock()
+	delete(l.cache, key)
+	l.mu.Unlock()
+}
+
 // keyIndex will return the location of the key in the batch, if its not found
 // it will add the key to the batch
 func (b *userBatch) keyIndex(l *UserLoader, key string) int {
