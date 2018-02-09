@@ -1,4 +1,4 @@
-//go:generate dataloaden github.com/vektah/dataloaden/example.User
+//go:generate dataloaden -keys string github.com/vektah/dataloaden/example.User
 
 package example
 

@@ -16,7 +16,7 @@ import (
         
 type {{.Name}}Loader struct {
 	// this method provides the data for the loader
-	fetch func(keys []string) ([]*{{.type}}, []error)
+	fetch func(keys []{{.keyType}}) ([]*{{.type}}, []error)
 
 	// how long to done before sending a batch
 	wait time.Duration
@@ -27,7 +27,7 @@ type {{.Name}}Loader struct {
 	// INTERNAL
 
 	// lazily created cache
-	cache map[string]*{{.type}}
+	cache map[{{.keyType}}]*{{.type}}
 
 	// the current batch. keys will continue to be collected until timeout is hit,
 	// then everything will be sent to the fetch method and out to the listeners
@@ -38,7 +38,7 @@ type {{.Name}}Loader struct {
 }
 
 type {{.name}}Batch struct {
-	keys    []string
+	keys    []{{.keyType}}
 	data    []*{{.type}}
 	error   []error
 	closing bool
@@ -47,14 +47,14 @@ type {{.name}}Batch struct {
 }
 
 // Load a {{.Name}} by key, batching and caching will be applied automatically
-func (l *{{.Name}}Loader) Load(key string) (*{{.type}}, error) {
+func (l *{{.Name}}Loader) Load(key {{.keyType}}) (*{{.type}}, error) {
 	return l.LoadThunk(key)()
 }
 
 // LoadThunk returns a function that when called will block waiting for a {{.Name}}.
 // This method should be used if you want one goroutine to make requests to many
 // different data loaders without blocking until the thunk is called.
-func (l *{{.Name}}Loader) LoadThunk(key string) func() (*{{.type}}, error) {
+func (l *{{.Name}}Loader) LoadThunk(key {{.keyType}}) func() (*{{.type}}, error) {
 	l.mu.Lock()
 	if it, ok := l.cache[key]; ok {
 		l.mu.Unlock()
@@ -75,7 +75,7 @@ func (l *{{.Name}}Loader) LoadThunk(key string) func() (*{{.type}}, error) {
 		if batch.error[pos] == nil {
 			l.mu.Lock()
 			if l.cache == nil {
-				l.cache = map[string]*{{.type}}{}
+				l.cache = map[{{.keyType}}]*{{.type}}{}
 			}
 			l.cache[key] = batch.data[pos]
 			l.mu.Unlock()
@@ -87,7 +87,7 @@ func (l *{{.Name}}Loader) LoadThunk(key string) func() (*{{.type}}, error) {
 
 // LoadAll fetches many keys at once. It will be broken into appropriate sized
 // sub batches depending on how the loader is configured
-func (l *{{.Name}}Loader) LoadAll(keys []string) ([]*{{.type}}, []error) {
+func (l *{{.Name}}Loader) LoadAll(keys []{{.keyType}}) ([]*{{.type}}, []error) {
 	results := make([]func() (*{{.type}}, error), len(keys))
 
 	for i, key := range keys {
@@ -104,7 +104,7 @@ func (l *{{.Name}}Loader) LoadAll(keys []string) ([]*{{.type}}, []error) {
 
 // keyIndex will return the location of the key in the batch, if its not found
 // it will add the key to the batch
-func (b *{{.name}}Batch) keyIndex(l *{{.Name}}Loader, key string) int {
+func (b *{{.name}}Batch) keyIndex(l *{{.Name}}Loader, key {{.keyType}}) int {
 	for i, existingKey := range b.keys {
 		if key == existingKey {
 			return i

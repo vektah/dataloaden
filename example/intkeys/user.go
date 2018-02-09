@@ -1,6 +1,6 @@
-//go:generate dataloaden github.com/vektah/dataloaden/example.User
+//go:generate dataloaden -keys int github.com/vektah/dataloaden/example.User
 
-package otherpkg
+package intkeys
 
 import (
 	"time"
