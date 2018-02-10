@@ -16,7 +16,18 @@ import (
 
 var (
 	keyType = flag.String("keys", "int", "what type should the keys be")
+	slice   = flag.Bool("slice", false, "this dataloader will return slices")
 )
+
+type templateData struct {
+	LoaderName string
+	BatchName  string
+	Package    string
+	Name       string
+	KeyType    string
+	ValType    string
+	Import     string
+}
 
 func main() {
 	flag.Parse()
@@ -32,42 +43,54 @@ func main() {
 		os.Exit(2)
 	}
 
-	filename := data["name"] + "_dlgen.go"
+	filename := data.Name + "loader_gen.go"
+	if *slice {
+		filename = data.Name + "sliceloader_gen.go"
+	}
 
 	writeTemplate(filename, data)
 }
 
-func getData(typeName string) (map[string]string, error) {
-	data := map[string]string{}
+func getData(typeName string) (templateData, error) {
+	var data templateData
 	parts := strings.Split(typeName, ".")
 	if len(parts) < 2 {
-		return nil, fmt.Errorf("type must be in the form package.Name")
+		return templateData{}, fmt.Errorf("type must be in the form package.Name")
 	}
 
 	wd, err := os.Getwd()
 	if err != nil {
-		return nil, fmt.Errorf("cant determine working dir: %s", err.Error())
+		return templateData{}, fmt.Errorf("cant determine working dir: %s", err.Error())
 	}
 
 	pkgName := strings.Join(parts[:len(parts)-1], ".")
-	data["package"] = filepath.Base(wd)
-	data["Name"] = parts[len(parts)-1]
-	data["name"] = lcFirst(data["Name"])
-	data["keyType"] = *keyType
+	name := parts[len(parts)-1]
+	data.Package = filepath.Base(wd)
+	data.LoaderName = name + "Loader"
+	data.BatchName = lcFirst(name) + "Batch"
+	data.Name = lcFirst(name)
+	data.KeyType = *keyType
+
+	prefix := "*"
+	if *slice {
+		prefix = "[]"
+		data.LoaderName = name + "SliceLoader"
+		data.BatchName = lcFirst(name) + "SliceBatch"
+	}
 
 	// if we are inside the same package as the type we don't need an import and can refer directly to the type
 	fmt.Println(wd, pkgName)
 	if strings.HasSuffix(wd, pkgName) {
-		data["type"] = data["Name"]
+		data.ValType = prefix + name
 	} else {
-		data["import"] = pkgName
-		data["type"] = filepath.Base(data["import"]) + "." + data["Name"]
+		data.Import = pkgName
+		data.ValType = prefix + filepath.Base(data.Import) + "." + name
 	}
 
 	return data, nil
 }
 
-func writeTemplate(filename string, data map[string]string) {
+func writeTemplate(filename string, data templateData) {
 	var buf bytes.Buffer
 	if err := tpl.Execute(&buf, data); err != nil {
 		log.Fatalf("generating code: %v", err)

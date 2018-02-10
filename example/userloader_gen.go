@@ -39,12 +39,12 @@ type userBatch struct {
 	done    chan struct{}
 }
 
-// Load a User by key, batching and caching will be applied automatically
+// Load a user by key, batching and caching will be applied automatically
 func (l *UserLoader) Load(key string) (*User, error) {
 	return l.LoadThunk(key)()
 }
 
-// LoadThunk returns a function that when called will block waiting for a User.
+// LoadThunk returns a function that when called will block waiting for a user.
 // This method should be used if you want one goroutine to make requests to many
 // different data loaders without blocking until the thunk is called.
 func (l *UserLoader) LoadThunk(key string) func() (*User, error) {
