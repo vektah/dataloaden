@@ -79,7 +79,6 @@ func getData(typeName string) (templateData, error) {
 	}
 
 	// if we are inside the same package as the type we don't need an import and can refer directly to the type
-	fmt.Println(wd, pkgName)
 	if strings.HasSuffix(wd, pkgName) {
 		data.ValType = prefix + name
 	} else {
