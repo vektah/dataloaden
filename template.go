@@ -72,16 +72,29 @@ func (l *{{.LoaderName}}) LoadThunk(key {{.KeyType}}) func() ({{.ValType}}, erro
 	return func() ({{.ValType}}, error) {
 		<-batch.done
 
-		if batch.error[pos] == nil {
+		var data {{.ValType}}
+		if pos < len(batch.data) {
+			data = batch.data[pos]
+		}
+
+		var err error
+		// its convenient to be able to return a single error for everything
+		if len(batch.error) == 1 {
+			err = batch.error[pos]
+		} else if batch.error != nil {
+			err = batch.error[pos]
+		}
+
+		if err == nil {
 			l.mu.Lock()
 			if l.cache == nil {
 				l.cache = map[{{.KeyType}}]{{.ValType}}{}
 			}
-			l.cache[key] = batch.data[pos]
+			l.cache[key] = data
 			l.mu.Unlock()
 		}
 
-		return batch.data[pos], batch.error[pos]
+		return data, err
 	}
 }
 
