@@ -82,10 +82,7 @@ func (l *UserSliceLoader) LoadThunk(key int) func() ([]example.User, error) {
 
 		if err == nil {
 			l.mu.Lock()
-			if l.cache == nil {
-				l.cache = map[int][]example.User{}
-			}
-			l.cache[key] = data
+			l.unsafeSet(key, data)
 			l.mu.Unlock()
 		}
 
@@ -115,7 +112,7 @@ func (l *UserSliceLoader) LoadAll(keys []int) ([][]example.User, []error) {
 func (l *UserSliceLoader) Prime(key int, value []example.User) {
 	l.mu.Lock()
 	if _, found := l.cache[key]; !found {
-		l.cache[key] = value
+		l.unsafeSet(key, value)
 	}
 	l.mu.Unlock()
 }
@@ -125,6 +122,13 @@ func (l *UserSliceLoader) Clear(key int) {
 	l.mu.Lock()
 	delete(l.cache, key)
 	l.mu.Unlock()
+}
+
+func (l *UserSliceLoader) unsafeSet(key int, value []example.User) {
+	if l.cache == nil {
+		l.cache = map[int][]example.User{}
+	}
+	l.cache[key] = value
 }
 
 // keyIndex will return the location of the key in the batch, if its not found

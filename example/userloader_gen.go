@@ -80,10 +80,7 @@ func (l *UserLoader) LoadThunk(key string) func() (*User, error) {
 
 		if err == nil {
 			l.mu.Lock()
-			if l.cache == nil {
-				l.cache = map[string]*User{}
-			}
-			l.cache[key] = data
+			l.unsafeSet(key, data)
 			l.mu.Unlock()
 		}
 
@@ -113,7 +110,7 @@ func (l *UserLoader) LoadAll(keys []string) ([]*User, []error) {
 func (l *UserLoader) Prime(key string, value *User) {
 	l.mu.Lock()
 	if _, found := l.cache[key]; !found {
-		l.cache[key] = value
+		l.unsafeSet(key, value)
 	}
 	l.mu.Unlock()
 }
@@ -123,6 +120,13 @@ func (l *UserLoader) Clear(key string) {
 	l.mu.Lock()
 	delete(l.cache, key)
 	l.mu.Unlock()
+}
+
+func (l *UserLoader) unsafeSet(key string, value *User) {
+	if l.cache == nil {
+		l.cache = map[string]*User{}
+	}
+	l.cache[key] = value
 }
 
 // keyIndex will return the location of the key in the batch, if its not found
