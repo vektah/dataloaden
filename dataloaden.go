@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"go/parser"
+	"go/token"
 	"io/ioutil"
 	"log"
 	"os"
@@ -63,9 +65,9 @@ func getData(typeName string) (templateData, error) {
 		return templateData{}, fmt.Errorf("cant determine working dir: %s", err.Error())
 	}
 
-	pkgName := strings.Join(parts[:len(parts)-1], ".")
+	pkgData := getPackage(wd)
 	name := parts[len(parts)-1]
-	data.Package = filepath.Base(wd)
+	data.Package = pkgData
 	data.LoaderName = name + "Loader"
 	data.BatchName = lcFirst(name) + "Batch"
 	data.Name = lcFirst(name)
@@ -79,6 +81,7 @@ func getData(typeName string) (templateData, error) {
 	}
 
 	// if we are inside the same package as the type we don't need an import and can refer directly to the type
+	pkgName := strings.Join(parts[:len(parts)-1], ".")
 	if strings.HasSuffix(wd, pkgName) {
 		data.ValType = prefix + name
 	} else {
@@ -87,6 +90,20 @@ func getData(typeName string) (templateData, error) {
 	}
 
 	return data, nil
+}
+
+func getPackage(wd string) string {
+	fset := token.NewFileSet()
+	results, err := parser.ParseDir(fset, wd, func(info os.FileInfo) bool { return true }, parser.PackageClauseOnly)
+	if err != nil {
+		return filepath.Base(wd)
+	}
+	if len(results) > 0 {
+		for pkgName := range results {
+			return pkgName
+		}
+	}
+	return filepath.Base(wd)
 }
 
 func writeTemplate(filename string, data templateData) {
