@@ -75,7 +75,7 @@ func (l *UserSliceLoader) LoadThunk(key int) func() ([]example.User, error) {
 		var err error
 		// its convenient to be able to return a single error for everything
 		if len(batch.error) == 1 {
-			err = batch.error[pos]
+			err = batch.error[0]
 		} else if batch.error != nil {
 			err = batch.error[pos]
 		}
@@ -107,14 +107,17 @@ func (l *UserSliceLoader) LoadAll(keys []int) ([][]example.User, []error) {
 	return users, errors
 }
 
-// Prime the cache with the provided key and value. If the key already exists, no change is made.
+// Prime the cache with the provided key and value. If the key already exists, no change is made
+// and false is returned.
 // (To forcefully prime the cache, clear the key first with loader.clear(key).prime(key, value).)
-func (l *UserSliceLoader) Prime(key int, value []example.User) {
+func (l *UserSliceLoader) Prime(key int, value []example.User) bool {
 	l.mu.Lock()
-	if _, found := l.cache[key]; !found {
+	var found bool
+	if _, found = l.cache[key]; !found {
 		l.unsafeSet(key, value)
 	}
 	l.mu.Unlock()
+	return !found
 }
 
 // Clear the value at key from the cache, if it exists
