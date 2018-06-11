@@ -107,14 +107,17 @@ func (l *UserLoader) LoadAll(keys []string) ([]*example.User, []error) {
 	return users, errors
 }
 
-// Prime the cache with the provided key and value. If the key already exists, no change is made.
+// Prime the cache with the provided key and value. If the key already exists, no change is made
+// and false is returned.
 // (To forcefully prime the cache, clear the key first with loader.clear(key).prime(key, value).)
-func (l *UserLoader) Prime(key string, value *example.User) {
+func (l *UserLoader) Prime(key string, value *example.User) bool {
 	l.mu.Lock()
-	if _, found := l.cache[key]; !found {
+	var found bool
+	if _, found = l.cache[key]; !found {
 		l.unsafeSet(key, value)
 	}
 	l.mu.Unlock()
+	return !found
 }
 
 // Clear the value at key from the cache, if it exists
