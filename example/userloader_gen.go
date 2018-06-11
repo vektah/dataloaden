@@ -73,7 +73,7 @@ func (l *UserLoader) LoadThunk(key string) func() (*User, error) {
 		var err error
 		// its convenient to be able to return a single error for everything
 		if len(batch.error) == 1 {
-			err = batch.error[pos]
+			err = batch.error[0]
 		} else if batch.error != nil {
 			err = batch.error[pos]
 		}
