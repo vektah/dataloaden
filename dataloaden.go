@@ -19,6 +19,8 @@ import (
 var (
 	keyType = flag.String("keys", "int", "what type should the keys be")
 	slice   = flag.Bool("slice", false, "this dataloader will return slices")
+	out     = flag.String("out", "", "the output filename (optional)")
+	private = flag.Bool("private", false, "the generated dataloader will be private")
 )
 
 type templateData struct {
@@ -45,9 +47,13 @@ func main() {
 		os.Exit(2)
 	}
 
-	filename := data.Name + "loader_gen.go"
-	if *slice {
-		filename = data.Name + "sliceloader_gen.go"
+	var filename string
+	if *out != "" {
+		filename = *out
+	} else if *slice {
+		filename = data.Name + "_sliceloader_gen.go"
+	} else {
+		filename = data.Name + "_loader_gen.go"
 	}
 
 	writeTemplate(filename, data)
@@ -67,8 +73,14 @@ func getData(typeName string) (templateData, error) {
 
 	pkgData := getPackage(wd)
 	name := parts[len(parts)-1]
+	var loaderPrefix string
+	if *private {
+		loaderPrefix = lcFirst(name)
+	} else {
+		loaderPrefix = name
+	}
 	data.Package = pkgData
-	data.LoaderName = name + "Loader"
+	data.LoaderName = loaderPrefix + "Loader"
 	data.BatchName = lcFirst(name) + "Batch"
 	data.Name = lcFirst(name)
 	data.KeyType = *keyType
@@ -76,7 +88,7 @@ func getData(typeName string) (templateData, error) {
 	prefix := "*"
 	if *slice {
 		prefix = "[]"
-		data.LoaderName = name + "SliceLoader"
+		data.LoaderName = loaderPrefix + "SliceLoader"
 		data.BatchName = lcFirst(name) + "SliceBatch"
 	}
 
