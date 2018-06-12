@@ -119,7 +119,14 @@ func (l *{{.LoaderName}}) Prime(key {{.KeyType}}, value {{.ValType}}) bool {
 	l.mu.Lock()
 	var found bool
 	if _, found = l.cache[key]; !found {
-		l.unsafeSet(key, value)
+		{{- if .Slice }}
+			l.unsafeSet(key, value)
+		{{- else }}
+			// make a copy when writing to the cache, its easy to pass a pointer in from a loop var
+			// and end up with the whole cache pointing to the same value.
+			cpy := *value
+			l.unsafeSet(key, &cpy)
+		{{- end }}
 	}
 	l.mu.Unlock()
 	return !found

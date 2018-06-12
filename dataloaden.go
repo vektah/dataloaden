@@ -29,6 +29,7 @@ type templateData struct {
 	KeyType    string
 	ValType    string
 	Import     string
+	Slice      bool
 }
 
 func main() {
@@ -46,7 +47,7 @@ func main() {
 	}
 
 	filename := data.Name + "loader_gen.go"
-	if *slice {
+	if data.Slice {
 		filename = data.Name + "sliceloader_gen.go"
 	}
 
@@ -72,6 +73,7 @@ func getData(typeName string) (templateData, error) {
 	data.BatchName = lcFirst(name) + "Batch"
 	data.Name = lcFirst(name)
 	data.KeyType = *keyType
+	data.Slice = *slice
 
 	prefix := "*"
 	if *slice {
