@@ -84,7 +84,7 @@ func getData(typeName string) (templateData, error) {
 
 	// if we are inside the same package as the type we don't need an import and can refer directly to the type
 	pkgName := strings.Join(parts[:len(parts)-1], ".")
-	if strings.HasSuffix(wd, pkgName) {
+	if strings.HasSuffix(filepath.ToSlash(wd), pkgName) {
 		data.ValType = prefix + name
 	} else {
 		data.Import = pkgName
