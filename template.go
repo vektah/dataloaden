@@ -17,13 +17,13 @@ import (
 // {{.LoaderName}} batches and caches requests          
 type {{.LoaderName}} struct {
 	// this method provides the data for the loader
-	fetch func(keys []{{.KeyType}}) ([]{{.ValType}}, []error)
+	Fetch func(keys []{{.KeyType}}) ([]{{.ValType}}, []error)
 
 	// how long to done before sending a batch
-	wait time.Duration
+	Wait time.Duration
 
 	// this will limit the maximum number of keys to send in one batch, 0 = no limit
-	maxBatch int
+	MaxBatch int
 
 	// INTERNAL
 
@@ -161,7 +161,7 @@ func (b *{{.BatchName}}) keyIndex(l *{{.LoaderName}}, key {{.KeyType}}) int {
 		go b.startTimer(l)
 	}
 
-	if l.maxBatch != 0 && pos >= l.maxBatch-1 {
+	if l.MaxBatch != 0 && pos >= l.MaxBatch-1 {
 		if !b.closing {
 			b.closing = true
 			l.batch = nil
@@ -173,7 +173,7 @@ func (b *{{.BatchName}}) keyIndex(l *{{.LoaderName}}, key {{.KeyType}}) int {
 }
 
 func (b *{{.BatchName}}) startTimer(l *{{.LoaderName}}) {
-	time.Sleep(l.wait)
+	time.Sleep(l.Wait)
 	l.mu.Lock()
 
 	// we must have hit a batch limit and are already finalizing this batch
@@ -189,7 +189,7 @@ func (b *{{.BatchName}}) startTimer(l *{{.LoaderName}}) {
 }
 
 func (b *{{.BatchName}}) end(l *{{.LoaderName}}) {
-	b.data, b.error = l.fetch(b.keys)
+	b.data, b.error = l.Fetch(b.keys)
 	close(b.done)
 }
 `))
