@@ -9,6 +9,27 @@ import (
 	"github.com/vektah/dataloaden/example"
 )
 
+// UserLoaderConfig captures the config to create a new UserLoader
+type UserLoaderConfig struct {
+	// Fetch is a method that provides the data for the loader
+	Fetch func(keys []string) ([]*example.User, []error)
+
+	// Wait is how long wait before sending a batch
+	Wait time.Duration
+
+	// MaxBatch will limit the maximum number of keys to send in one batch, 0 = not limit
+	MaxBatch int
+}
+
+// NewUserLoader creates a new UserLoader given a fetch, wait, and maxBatch
+func NewUserLoader(config UserLoaderConfig) *UserLoader {
+	return &UserLoader{
+		fetch:    config.Fetch,
+		wait:     config.Wait,
+		maxBatch: config.MaxBatch,
+	}
+}
+
 // UserLoader batches and caches requests
 type UserLoader struct {
 	// this method provides the data for the loader
