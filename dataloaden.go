@@ -102,6 +102,9 @@ func getPackage(wd string) string {
 	}
 	if len(results) > 0 {
 		for pkgName := range results {
+			if strings.HasSuffix(pkgName, "_test") {
+				continue
+			}
 			return pkgName
 		}
 	}
