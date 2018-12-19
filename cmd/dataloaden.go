@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"go/parser"
-	"go/token"
+	"go/build"
 	"io/ioutil"
 	"log"
 	"os"
@@ -32,7 +31,7 @@ type templateData struct {
 	Slice      bool
 }
 
-// Execute runs the dataloaden generator
+// Execute generate dataloaders for the passed type
 func Execute() {
 	flag.Parse()
 
@@ -96,17 +95,12 @@ func getData(typeName string) (templateData, error) {
 }
 
 func getPackage(wd string) string {
-	fset := token.NewFileSet()
-	results, err := parser.ParseDir(fset, wd, func(info os.FileInfo) bool { return true }, parser.PackageClauseOnly)
+	result, err := build.ImportDir(wd, build.IgnoreVendor)
 	if err != nil {
 		return filepath.Base(wd)
 	}
-	if len(results) > 0 {
-		for pkgName := range results {
-			return pkgName
-		}
-	}
-	return filepath.Base(wd)
+
+	return result.Name
 }
 
 func writeTemplate(filename string, data templateData) {
