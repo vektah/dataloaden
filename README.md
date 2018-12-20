@@ -20,7 +20,7 @@ dataloaden github.com/dataloaden/example.User
 ```
 
 In another file in the same package, create the constructor method:
-```go 
+```go
 func NewLoader() *UserLoader {
 	return &UserLoader{
 		wait:     2 * time.Millisecond,
@@ -36,23 +36,33 @@ func NewLoader() *UserLoader {
 		},
 	}
 }
-``` 
+```
 
 Then wherever you want to call the dataloader
 ```go
 loader := NewLoader()
 
 user, err := loader.Load("123")
-``` 
+```
 
 This method will block for a short amount of time, waiting for any other similar requests to come in, call your fetch
-function once. It also caches values and wont request duplicates in a batch.   
+function once. It also caches values and wont request duplicates in a batch.
+
+#### Returning Slices
+
+You may want to generate a dataloader that returns slices instead of single values. This can be done using the `-slice` flag:
+
+```bash
+dataloaden -slice github.com/dataloaden/example.User
+```
+
+Now each key is expected to return a slice of values and the `fetch` function has the return type `[][]User`.
 
 #### Wait, how do I use context with this?
 
 I don't think context makes sense to be passed through a data loader. Consider a few scenarios:
 1. a dataloader shared between requests: request A and B both get batched together, which context should be passed to the DB? context.Background is probably more suitable.
-2. a dataloader per request for graphql: two different nodes in the graph get batched together, they have different context for tracing purposes, which should be passed to the db? neither, you should just use the root request context. 
+2. a dataloader per request for graphql: two different nodes in the graph get batched together, they have different context for tracing purposes, which should be passed to the db? neither, you should just use the root request context.
 
 
 So be explicit about your context:
@@ -62,7 +72,7 @@ func NewLoader(ctx context.Context) *UserLoader {
 		wait:     2 * time.Millisecond,
 		maxBatch: 100,
 		fetch: func(keys []string) ([]*User, []error) {
-			// you now have a ctx to work with 
+			// you now have a ctx to work with
 		},
 	}
 }
