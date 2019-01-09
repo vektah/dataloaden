@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/EGT-Ukraine/dataloaden/pkg/generator"
+	"github.com/vektah/dataloaden/pkg/generator"
 )
 
 func main() {
