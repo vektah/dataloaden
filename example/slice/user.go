@@ -1,4 +1,4 @@
-//go:generate go run ../../dataloaden.go ../../template.go -keys int -slice github.com/vektah/dataloaden/example.User
+//go:generate go run ../../dataloaden.go -keys int -slice github.com/vektah/dataloaden/example.User
 
 package slice
 

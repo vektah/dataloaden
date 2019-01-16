@@ -107,6 +107,25 @@ func (l *UserLoader) LoadAll(keys []string) ([]*example.User, []error) {
 	return users, errors
 }
 
+// LoadThunk returns a function that when called will block waiting for a users.
+// This method should be used if you want one goroutine to make requests to many
+// different data loaders without blocking until the thunk is called.
+func (l *UserLoader) LoadAllThunk(keys []string) func() ([]*example.User, []error) {
+	results := make([]func() (*example.User, error), len(keys))
+
+	for i, key := range keys {
+		results[i] = l.LoadThunk(key)
+	}
+	return func() {
+		users := make([]*example.User, len(keys))
+		errors := make([]error, len(keys))
+		for i, thunk := range results {
+			users[i], errors[i] = thunk()
+		}
+		return users, errors
+	}
+}
+
 // Prime the cache with the provided key and value. If the key already exists, no change is made
 // and false is returned.
 // (To forcefully prime the cache, clear the key first with loader.clear(key).prime(key, value).)
