@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -80,8 +81,8 @@ func TestUserLoader(t *testing.T) {
 		defer mu.Unlock()
 
 		require.Len(t, fetches, 2)
-		require.Len(t, fetches[0], 5)
-		require.Len(t, fetches[1], 3)
+		assert.Len(t, fetches[0], 5)
+		assert.Len(t, fetches[1], 3)
 	})
 
 	t.Run("fetch more", func(t *testing.T) {
