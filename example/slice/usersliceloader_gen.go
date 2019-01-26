@@ -9,6 +9,27 @@ import (
 	"github.com/vektah/dataloaden/example"
 )
 
+// UserSliceLoaderConfig captures the config to create a new UserSliceLoader
+type UserSliceLoaderConfig struct {
+	// Fetch is a method that provides the data for the loader
+	Fetch func(keys []int) ([][]example.User, []error)
+
+	// Wait is how long wait before sending a batch
+	Wait time.Duration
+
+	// MaxBatch will limit the maximum number of keys to send in one batch, 0 = not limit
+	MaxBatch int
+}
+
+// NewUserSliceLoader creates a new UserSliceLoader given a fetch, wait, and maxBatch
+func NewUserSliceLoader(config UserSliceLoaderConfig) *UserSliceLoader {
+	return &UserSliceLoader{
+		fetch:    config.Fetch,
+		wait:     config.Wait,
+		maxBatch: config.MaxBatch,
+	}
+}
+
 // UserSliceLoader batches and caches requests
 type UserSliceLoader struct {
 	// this method provides the data for the loader
