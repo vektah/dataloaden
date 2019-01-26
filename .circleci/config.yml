@@ -1,39 +1,12 @@
 version: 2
 jobs:
-  go1.7: &base
+  build:
     docker:
-      - image: golang:1.7
-    working_directory: /go/src/github.com/vektah/dataloaden
+      - image: golang:1.11
+    working_directory: /projects/dataloaden
     steps: &steps
       - checkout
-      - run: >
-          curl -L -o /bin/dep https://github.com/golang/dep/releases/download/v0.4.1/dep-linux-amd64 &&
-          chmod +x /bin/dep &&
-          go get -u github.com/alecthomas/gometalinter &&
-          gometalinter --install &&
-          dep ensure --vendor-only
-      - run: go install -v .
       - run: go generate ./example/... && if [[ $(git diff) ]] ; then echo "you need to run go generate" ; git diff ; exit 1 ; fi
-      - run: go vet ./example/...
       - run: go test -bench=. -benchmem -v ./example/...
       - run: go test -bench=. -benchmem -v ./example/... -race
       - run: go test -coverprofile=coverage.txt -covermode=atomic ./example && bash <(curl -s https://codecov.io/bash)
-      - run: gometalinter --disable gocyclo ./example
-
-  go1.8:
-    <<: *base
-    docker:
-      - image: golang:1.8
-
-  go1.9:
-    <<: *base
-    docker:
-      - image: golang:1.9
-
-workflows:
-  version: 2
-  build:
-    jobs:
-      - "go1.7"
-      - "go1.8"
-      - "go1.9"

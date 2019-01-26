@@ -3,13 +3,13 @@ package generator
 import (
 	"bytes"
 	"fmt"
-	"go/build"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
 	"unicode"
 
 	"github.com/pkg/errors"
+	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/imports"
 )
 
@@ -49,9 +49,15 @@ func getData(typeName string, keyType string, slice bool, wd string) (templateDa
 		return templateData{}, fmt.Errorf("type must be in the form package.Name")
 	}
 
-	pkgData := getPackage(wd)
 	name := parts[len(parts)-1]
-	data.Package = pkgData
+	importPath := strings.Join(parts[:len(parts)-1], ".")
+
+	genPkg := getPackage(wd)
+	if genPkg == nil {
+		return templateData{}, fmt.Errorf("unable to find package info for " + wd)
+	}
+
+	data.Package = genPkg.Name
 	data.LoaderName = name + "Loader"
 	data.BatchName = lcFirst(name) + "Batch"
 	data.Name = lcFirst(name)
@@ -66,24 +72,26 @@ func getData(typeName string, keyType string, slice bool, wd string) (templateDa
 	}
 
 	// if we are inside the same package as the type we don't need an import and can refer directly to the type
-	pkgName := strings.Join(parts[:len(parts)-1], ".")
-	if strings.HasSuffix(filepath.ToSlash(wd), pkgName) {
+	if genPkg.PkgPath == importPath {
 		data.ValType = prefix + name
 	} else {
-		data.Import = pkgName
+		data.Import = importPath
 		data.ValType = prefix + filepath.Base(data.Import) + "." + name
 	}
 
 	return data, nil
 }
 
-func getPackage(wd string) string {
-	result, err := build.ImportDir(wd, build.IgnoreVendor)
-	if err != nil {
-		return filepath.Base(wd)
+func getPackage(dir string) *packages.Package {
+	p, _ := packages.Load(&packages.Config{
+		Dir: dir,
+	}, ".")
+
+	if len(p) != 1 {
+		return nil
 	}
 
-	return result.Name
+	return p[0]
 }
 
 func writeTemplate(filepath string, data templateData) error {

@@ -3,13 +3,13 @@ version: "{build}"
 # Source Config
 
 skip_branch_with_pr: true
-clone_folder: c:\gopath\src\github.com\vektah\dataloaden
+clone_folder: c:\projects\dataloaden
 
 # Build host
 
 environment:
   GOPATH: c:\gopath
-  GOVERSION: 1.10
+  GOVERSION: 1.11.5
   PATH: '%PATH%;c:\gopath\bin'
 
 init:
@@ -28,6 +28,5 @@ build: false
 deploy: false
 
 test_script:
-  - go get -t ./...
   - go generate ./...
-  - go test ./...
+  - go test  -parallel 8 ./...
