@@ -59,6 +59,23 @@ dataloaden -slice github.com/dataloaden/example.User
 
 Now each key is expected to return a slice of values and the `fetch` function has the return type `[][]User`.
 
+#### Returning pointers
+
+This can be done using the `-pointer` flag:
+
+```bash
+dataloaden -pointer github.com/dataloaden/example.User
+```
+
+Now each key is expected to return a pointer to value and the `fetch` function has the return type `[]*User`.
+
+Slice of pointer to value:
+```bash
+dataloaden -slice -pointer github.com/dataloaden/example.User
+```
+
+Now each key is expected to return a slice of pointer to value and the `fetch` function has the return type `[][]*User`.
+
 #### Using with go modules
 
 Create a tools.go that looks like this:

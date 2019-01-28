@@ -24,8 +24,8 @@ type templateData struct {
 	Slice      bool
 }
 
-func Generate(typename string, keyType string, slice bool, wd string) error {
-	data, err := getData(typename, keyType, slice, wd)
+func Generate(typename string, keyType string, slice bool, pointer bool, wd string) error {
+	data, err := getData(typename, keyType, slice, pointer, wd)
 	if err != nil {
 		return err
 	}
@@ -42,7 +42,7 @@ func Generate(typename string, keyType string, slice bool, wd string) error {
 	return nil
 }
 
-func getData(typeName string, keyType string, slice bool, wd string) (templateData, error) {
+func getData(typeName string, keyType string, slice bool, pointer bool, wd string) (templateData, error) {
 	var data templateData
 	parts := strings.Split(typeName, ".")
 	if len(parts) < 2 {
@@ -64,11 +64,15 @@ func getData(typeName string, keyType string, slice bool, wd string) (templateDa
 	data.KeyType = keyType
 	data.Slice = slice
 
-	prefix := "*"
+	prefix := ""
 	if slice {
 		prefix = "[]"
 		data.LoaderName = name + "SliceLoader"
 		data.BatchName = lcFirst(name) + "SliceBatch"
+	}
+
+	if pointer {
+		prefix = prefix + "*"
 	}
 
 	// if we are inside the same package as the type we don't need an import and can refer directly to the type
