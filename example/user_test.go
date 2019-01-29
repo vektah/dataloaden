@@ -175,4 +175,22 @@ func TestUserLoader(t *testing.T) {
 
 		require.Len(t, fetches, 4)
 	})
+
+	t.Run("load all thunk", func(t *testing.T) {
+		thunk1 := dl.LoadAllThunk([]string{"U5", "U6"})
+		thunk2 := dl.LoadAllThunk([]string{"U6", "E6"})
+
+		users1, err1 := thunk1()
+
+		require.NoError(t, err1[0])
+		require.NoError(t, err1[1])
+		require.Equal(t, "user U5", users1[0].Name)
+		require.Equal(t, "user U6", users1[1].Name)
+
+		users2, err2 := thunk2()
+
+		require.NoError(t, err2[0])
+		require.Error(t, err2[1])
+		require.Equal(t, "user U6", users2[0].Name)
+	})
 }
