@@ -70,7 +70,7 @@ Slice of pointers to value:
 dataloaden []*github.com/dataloaden/example.User
 ```
 
-Now each key is expected to return a slice of pointer to value and the `fetch` function has the return type `[][]*User`.
+Now each key is expected to return a slice of pointers to value and the `fetch` function has the return type `[][]*User`.
 
 #### Using with go modules
 
