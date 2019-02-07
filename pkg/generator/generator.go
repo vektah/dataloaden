@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
-	"strings"
+	"regexp"
 	"unicode"
 
 	"github.com/pkg/errors"
@@ -24,8 +24,31 @@ type templateData struct {
 	Slice      bool
 }
 
-func Generate(typename string, keyType string, slice bool, pointer bool, wd string) error {
-	data, err := getData(typename, keyType, slice, pointer, wd)
+type ValueType struct {
+	Name       string
+	ImportPath string
+	IsSlice    bool
+	IsPointer  bool
+}
+
+func NewValueTypeFromString(typeName string) (*ValueType, error) {
+	valueTypeRegexp := regexp.MustCompile(`^(\[\])?(\*)?(.+)+\.(\w+)+$`)
+	matches := valueTypeRegexp.FindStringSubmatch(typeName)
+
+	if matches == nil {
+		return nil, errors.New("Invalid value type format. Expected: []*github.com/dataloaden/example.User")
+	}
+
+	return &ValueType{
+		Name:       matches[4],
+		ImportPath: matches[3],
+		IsSlice:    matches[1] != "",
+		IsPointer:  matches[2] != "",
+	}, nil
+}
+
+func Generate(valueType *ValueType, keyType string, wd string) error {
+	data, err := getData(valueType, keyType, wd)
 	if err != nil {
 		return err
 	}
@@ -42,44 +65,39 @@ func Generate(typename string, keyType string, slice bool, pointer bool, wd stri
 	return nil
 }
 
-func getData(typeName string, keyType string, slice bool, pointer bool, wd string) (templateData, error) {
+func getData(valueType *ValueType, keyType string, wd string) (templateData, error) {
 	var data templateData
-	parts := strings.Split(typeName, ".")
-	if len(parts) < 2 {
-		return templateData{}, fmt.Errorf("type must be in the form package.Name")
-	}
-
-	name := parts[len(parts)-1]
-	importPath := strings.Join(parts[:len(parts)-1], ".")
 
 	genPkg := getPackage(wd)
 	if genPkg == nil {
 		return templateData{}, fmt.Errorf("unable to find package info for " + wd)
 	}
 
+	name := valueType.Name
+
 	data.Package = genPkg.Name
 	data.LoaderName = name + "Loader"
 	data.BatchName = lcFirst(name) + "Batch"
 	data.Name = lcFirst(name)
 	data.KeyType = keyType
-	data.Slice = slice
+	data.Slice = valueType.IsSlice
 
 	prefix := ""
-	if slice {
+	if valueType.IsSlice {
 		prefix = "[]"
 		data.LoaderName = name + "SliceLoader"
 		data.BatchName = lcFirst(name) + "SliceBatch"
 	}
 
-	if pointer {
+	if valueType.IsPointer {
 		prefix = prefix + "*"
 	}
 
 	// if we are inside the same package as the type we don't need an import and can refer directly to the type
-	if genPkg.PkgPath == importPath {
+	if genPkg.PkgPath == valueType.ImportPath {
 		data.ValType = prefix + name
 	} else {
-		data.Import = importPath
+		data.Import = valueType.ImportPath
 		data.ValType = prefix + filepath.Base(data.Import) + "." + name
 	}
 

@@ -10,8 +10,6 @@ import (
 
 func main() {
 	keyType := flag.String("keys", "int", "what type should the keys be")
-	slice := flag.Bool("slice", false, "this dataloader will return slices")
-	pointer := flag.Bool("pointer", false, "this dataloader will return pointer")
 
 	flag.Parse()
 
@@ -27,7 +25,14 @@ func main() {
 		os.Exit(2)
 	}
 
-	if err := generator.Generate(flag.Arg(0), *keyType, *slice, *pointer, wd); err != nil {
+	valueType, err := generator.NewValueTypeFromString(flag.Arg(0))
+
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(2)
+	}
+
+	if err := generator.Generate(valueType, *keyType, wd); err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(2)
 	}

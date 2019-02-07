@@ -17,7 +17,7 @@ go get -u github.com/vektah/dataloaden
 
 then from inside the package you want to have the dataloader in:
 ```bash
-dataloaden github.com/dataloaden/example.User
+dataloaden *github.com/dataloaden/example.User
 ```
 
 In another file in the same package, create the constructor method:
@@ -51,27 +51,23 @@ function once. It also caches values and wont request duplicates in a batch.
 
 #### Returning Slices
 
-You may want to generate a dataloader that returns slices instead of single values. This can be done using the `-slice` flag:
-
 ```bash
-dataloaden -slice github.com/dataloaden/example.User
+dataloaden []github.com/dataloaden/example.User
 ```
 
 Now each key is expected to return a slice of values and the `fetch` function has the return type `[][]User`.
 
 #### Returning pointers
 
-This can be done using the `-pointer` flag:
-
 ```bash
-dataloaden -pointer github.com/dataloaden/example.User
+dataloaden *github.com/dataloaden/example.User
 ```
 
 Now each key is expected to return a pointer to value and the `fetch` function has the return type `[]*User`.
 
-Slice of pointer to value:
+Slice of pointers to value:
 ```bash
-dataloaden -slice -pointer github.com/dataloaden/example.User
+dataloaden []*github.com/dataloaden/example.User
 ```
 
 Now each key is expected to return a slice of pointer to value and the `fetch` function has the return type `[][]*User`.
