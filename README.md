@@ -10,19 +10,17 @@ get used.
 
 #### Getting started
 
-First grab it:
+From inside the package you want to have the dataloader in:
 ```bash
-go get -u github.com/vektah/dataloaden
+go run github.com/vektah/dataloaden UserLoader string *github.com/dataloaden/example.User
 ```
 
-then from inside the package you want to have the dataloader in:
-```bash
-dataloaden github.com/dataloaden/example.User
-```
+This will generate a dataloader called `UserLoader` that looks up `*github.com/dataloaden/example.User`'s objects 
+based on a `string` key. 
 
 In another file in the same package, create the constructor method:
 ```go
-func NewLoader() *UserLoader {
+func NewUserLoader() *UserLoader {
 	return &UserLoader{
 		wait:     2 * time.Millisecond,
 		maxBatch: 100,
@@ -41,7 +39,7 @@ func NewLoader() *UserLoader {
 
 Then wherever you want to call the dataloader
 ```go
-loader := NewLoader()
+loader := NewUserLoader()
 
 user, err := loader.Load("123")
 ```
@@ -51,13 +49,14 @@ function once. It also caches values and wont request duplicates in a batch.
 
 #### Returning Slices
 
-You may want to generate a dataloader that returns slices instead of single values. This can be done using the `-slice` flag:
+You may want to generate a dataloader that returns slices instead of single values. Both key and value types can be a 
+simple go type expression: 
 
 ```bash
-dataloaden -slice github.com/dataloaden/example.User
+go run github.com/vektah/dataloaden UserSliceLoader string []*github.com/dataloaden/example.User
 ```
 
-Now each key is expected to return a slice of values and the `fetch` function has the return type `[][]User`.
+Now each key is expected to return a slice of values and the `fetch` function has the return type `[][]*User`.
 
 #### Using with go modules
 
