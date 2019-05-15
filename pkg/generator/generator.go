@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"unicode"
 
@@ -14,26 +15,76 @@ import (
 )
 
 type templateData struct {
-	LoaderName string
-	BatchName  string
-	Package    string
-	Name       string
-	KeyType    string
-	ValType    string
-	Import     string
-	Slice      bool
+	Package string
+	Name    string
+	KeyType *goType
+	ValType *goType
 }
 
-func Generate(typename string, keyType string, slice bool, wd string) error {
-	data, err := getData(typename, keyType, slice, wd)
+type goType struct {
+	Modifiers  string
+	ImportPath string
+	ImportName string
+	Name       string
+}
+
+func (t *goType) String() string {
+	if t.ImportName != "" {
+		return t.Modifiers + t.ImportName + "." + t.Name
+	}
+
+	return t.Modifiers + t.Name
+}
+
+func (t *goType) IsPtr() bool {
+	return strings.HasPrefix(t.Modifiers, "*")
+}
+
+func (t *goType) IsSlice() bool {
+	return strings.HasPrefix(t.Modifiers, "[]")
+}
+
+var partsRe = regexp.MustCompile(`^([\[\]\*]*)(.*?)(\.\w*)?$`)
+
+func parseType(str string) (*goType, error) {
+	parts := partsRe.FindStringSubmatch(str)
+	if len(parts) != 4 {
+		return nil, fmt.Errorf("type must be in the form []*github.com/import/path.Name")
+	}
+
+	t := &goType{
+		Modifiers:  parts[1],
+		ImportPath: parts[2],
+		Name:       strings.TrimPrefix(parts[3], "."),
+	}
+
+	if t.Name == "" {
+		t.Name = t.ImportPath
+		t.ImportPath = ""
+	}
+
+	if t.ImportPath != "" {
+		p, err := packages.Load(&packages.Config{Mode: packages.NeedName}, t.ImportPath)
+		if err != nil {
+			return nil, err
+		}
+		if len(p) != 1 {
+			return nil, fmt.Errorf("not found")
+		}
+
+		t.ImportName = p[0].Name
+	}
+
+	return t, nil
+}
+
+func Generate(name string, keyType string, valueType string, wd string) error {
+	data, err := getData(name, keyType, valueType, wd)
 	if err != nil {
 		return err
 	}
 
-	filename := data.Name + "loader_gen.go"
-	if data.Slice {
-		filename = data.Name + "sliceloader_gen.go"
-	}
+	filename := strings.ToLower(data.Name) + "_gen.go"
 
 	if err := writeTemplate(filepath.Join(wd, filename), data); err != nil {
 		return err
@@ -42,41 +93,34 @@ func Generate(typename string, keyType string, slice bool, wd string) error {
 	return nil
 }
 
-func getData(typeName string, keyType string, slice bool, wd string) (templateData, error) {
+func getData(name string, keyType string, valueType string, wd string) (templateData, error) {
 	var data templateData
-	parts := strings.Split(typeName, ".")
-	if len(parts) < 2 {
-		return templateData{}, fmt.Errorf("type must be in the form package.Name")
-	}
-
-	name := parts[len(parts)-1]
-	importPath := strings.Join(parts[:len(parts)-1], ".")
 
 	genPkg := getPackage(wd)
 	if genPkg == nil {
 		return templateData{}, fmt.Errorf("unable to find package info for " + wd)
 	}
 
+	var err error
+	data.Name = name
 	data.Package = genPkg.Name
-	data.LoaderName = name + "Loader"
-	data.BatchName = lcFirst(name) + "Batch"
-	data.Name = lcFirst(name)
-	data.KeyType = keyType
-	data.Slice = slice
-
-	prefix := "*"
-	if slice {
-		prefix = "[]"
-		data.LoaderName = name + "SliceLoader"
-		data.BatchName = lcFirst(name) + "SliceBatch"
+	data.KeyType, err = parseType(keyType)
+	if err != nil {
+		return templateData{}, fmt.Errorf("key type: %s", err.Error())
+	}
+	data.ValType, err = parseType(valueType)
+	if err != nil {
+		return templateData{}, fmt.Errorf("key type: %s", err.Error())
 	}
 
 	// if we are inside the same package as the type we don't need an import and can refer directly to the type
-	if genPkg.PkgPath == importPath {
-		data.ValType = prefix + name
-	} else {
-		data.Import = importPath
-		data.ValType = prefix + filepath.Base(data.Import) + "." + name
+	if genPkg.PkgPath == data.ValType.ImportPath {
+		data.ValType.ImportName = ""
+		data.ValType.ImportPath = ""
+	}
+	if genPkg.PkgPath == data.KeyType.ImportPath {
+		data.KeyType.ImportName = ""
+		data.KeyType.ImportPath = ""
 	}
 
 	return data, nil

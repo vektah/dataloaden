@@ -48,13 +48,13 @@ type UserSliceLoader struct {
 
 	// the current batch. keys will continue to be collected until timeout is hit,
 	// then everything will be sent to the fetch method and out to the listeners
-	batch *userSliceBatch
+	batch *userSliceLoaderBatch
 
 	// mutex to prevent races
 	mu sync.Mutex
 }
 
-type userSliceBatch struct {
+type userSliceLoaderBatch struct {
 	keys    []int
 	data    [][]example.User
 	error   []error
@@ -62,12 +62,12 @@ type userSliceBatch struct {
 	done    chan struct{}
 }
 
-// Load a user by key, batching and caching will be applied automatically
+// Load a User by key, batching and caching will be applied automatically
 func (l *UserSliceLoader) Load(key int) ([]example.User, error) {
 	return l.LoadThunk(key)()
 }
 
-// LoadThunk returns a function that when called will block waiting for a user.
+// LoadThunk returns a function that when called will block waiting for a User.
 // This method should be used if you want one goroutine to make requests to many
 // different data loaders without blocking until the thunk is called.
 func (l *UserSliceLoader) LoadThunk(key int) func() ([]example.User, error) {
@@ -79,7 +79,7 @@ func (l *UserSliceLoader) LoadThunk(key int) func() ([]example.User, error) {
 		}
 	}
 	if l.batch == nil {
-		l.batch = &userSliceBatch{done: make(chan struct{})}
+		l.batch = &userSliceLoaderBatch{done: make(chan struct{})}
 	}
 	batch := l.batch
 	pos := batch.keyIndex(l, key)
@@ -128,7 +128,7 @@ func (l *UserSliceLoader) LoadAll(keys []int) ([][]example.User, []error) {
 	return users, errors
 }
 
-// LoadAllThunk returns a function that when called will block waiting for a users.
+// LoadAllThunk returns a function that when called will block waiting for a Users.
 // This method should be used if you want one goroutine to make requests to many
 // different data loaders without blocking until the thunk is called.
 func (l *UserSliceLoader) LoadAllThunk(keys []int) func() ([][]example.User, []error) {
@@ -153,7 +153,11 @@ func (l *UserSliceLoader) Prime(key int, value []example.User) bool {
 	l.mu.Lock()
 	var found bool
 	if _, found = l.cache[key]; !found {
-		l.unsafeSet(key, value)
+		// make a copy when writing to the cache, its easy to pass a pointer in from a loop var
+		// and end up with the whole cache pointing to the same value.
+		cpy := make([]example.User, len(value))
+		copy(cpy, value)
+		l.unsafeSet(key, cpy)
 	}
 	l.mu.Unlock()
 	return !found
@@ -175,7 +179,7 @@ func (l *UserSliceLoader) unsafeSet(key int, value []example.User) {
 
 // keyIndex will return the location of the key in the batch, if its not found
 // it will add the key to the batch
-func (b *userSliceBatch) keyIndex(l *UserSliceLoader, key int) int {
+func (b *userSliceLoaderBatch) keyIndex(l *UserSliceLoader, key int) int {
 	for i, existingKey := range b.keys {
 		if key == existingKey {
 			return i
@@ -199,7 +203,7 @@ func (b *userSliceBatch) keyIndex(l *UserSliceLoader, key int) int {
 	return pos
 }
 
-func (b *userSliceBatch) startTimer(l *UserSliceLoader) {
+func (b *userSliceLoaderBatch) startTimer(l *UserSliceLoader) {
 	time.Sleep(l.wait)
 	l.mu.Lock()
 
@@ -215,7 +219,7 @@ func (b *userSliceBatch) startTimer(l *UserSliceLoader) {
 	b.end(l)
 }
 
-func (b *userSliceBatch) end(l *UserSliceLoader) {
+func (b *userSliceLoaderBatch) end(l *UserSliceLoader) {
 	b.data, b.error = l.fetch(b.keys)
 	close(b.done)
 }

@@ -46,13 +46,13 @@ type UserLoader struct {
 
 	// the current batch. keys will continue to be collected until timeout is hit,
 	// then everything will be sent to the fetch method and out to the listeners
-	batch *userBatch
+	batch *userLoaderBatch
 
 	// mutex to prevent races
 	mu sync.Mutex
 }
 
-type userBatch struct {
+type userLoaderBatch struct {
 	keys    []string
 	data    []*User
 	error   []error
@@ -60,12 +60,12 @@ type userBatch struct {
 	done    chan struct{}
 }
 
-// Load a user by key, batching and caching will be applied automatically
+// Load a User by key, batching and caching will be applied automatically
 func (l *UserLoader) Load(key string) (*User, error) {
 	return l.LoadThunk(key)()
 }
 
-// LoadThunk returns a function that when called will block waiting for a user.
+// LoadThunk returns a function that when called will block waiting for a User.
 // This method should be used if you want one goroutine to make requests to many
 // different data loaders without blocking until the thunk is called.
 func (l *UserLoader) LoadThunk(key string) func() (*User, error) {
@@ -77,7 +77,7 @@ func (l *UserLoader) LoadThunk(key string) func() (*User, error) {
 		}
 	}
 	if l.batch == nil {
-		l.batch = &userBatch{done: make(chan struct{})}
+		l.batch = &userLoaderBatch{done: make(chan struct{})}
 	}
 	batch := l.batch
 	pos := batch.keyIndex(l, key)
@@ -126,7 +126,7 @@ func (l *UserLoader) LoadAll(keys []string) ([]*User, []error) {
 	return users, errors
 }
 
-// LoadAllThunk returns a function that when called will block waiting for a users.
+// LoadAllThunk returns a function that when called will block waiting for a Users.
 // This method should be used if you want one goroutine to make requests to many
 // different data loaders without blocking until the thunk is called.
 func (l *UserLoader) LoadAllThunk(keys []string) func() ([]*User, []error) {
@@ -176,7 +176,7 @@ func (l *UserLoader) unsafeSet(key string, value *User) {
 
 // keyIndex will return the location of the key in the batch, if its not found
 // it will add the key to the batch
-func (b *userBatch) keyIndex(l *UserLoader, key string) int {
+func (b *userLoaderBatch) keyIndex(l *UserLoader, key string) int {
 	for i, existingKey := range b.keys {
 		if key == existingKey {
 			return i
@@ -200,7 +200,7 @@ func (b *userBatch) keyIndex(l *UserLoader, key string) int {
 	return pos
 }
 
-func (b *userBatch) startTimer(l *UserLoader) {
+func (b *userLoaderBatch) startTimer(l *UserLoader) {
 	time.Sleep(l.wait)
 	l.mu.Lock()
 
@@ -216,7 +216,7 @@ func (b *userBatch) startTimer(l *UserLoader) {
 	b.end(l)
 }
 
-func (b *userBatch) end(l *UserLoader) {
+func (b *userLoaderBatch) end(l *UserLoader) {
 	b.data, b.error = l.fetch(b.keys)
 	close(b.done)
 }
