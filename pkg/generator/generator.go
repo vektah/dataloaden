@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/iancoleman/strcase"
 	"github.com/pkg/errors"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/imports"
@@ -78,15 +79,26 @@ func parseType(str string) (*goType, error) {
 	return t, nil
 }
 
-func Generate(name string, keyType string, valueType string, wd string) error {
-	data, err := getData(name, keyType, valueType, wd)
+type GenerateInput struct {
+	Name       string
+	KeyType    string
+	ValueType  string
+	WorkingDir string
+	Output     string
+}
+
+func Generate(input *GenerateInput) error {
+	data, err := getData(input.Name, input.KeyType, input.ValueType, input.WorkingDir)
 	if err != nil {
 		return err
 	}
 
-	filename := strings.ToLower(data.Name) + "_gen.go"
+	filename := input.Output
+	if filename == "" {
+		filename = strcase.ToSnake(data.Name) + "_gen.go"
+	}
 
-	if err := writeTemplate(filepath.Join(wd, filename), data); err != nil {
+	if err := writeTemplate(filepath.Join(input.WorkingDir, filename), data); err != nil {
 		return err
 	}
 

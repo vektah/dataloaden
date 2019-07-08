@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
@@ -8,7 +9,12 @@ import (
 )
 
 func main() {
-	if len(os.Args) != 4 {
+	output := flag.String("output", "", "output filename")
+
+	flag.Parse()
+
+	args := flag.Args()
+	if len(args) != 3 {
 		fmt.Println("usage: name keyType valueType")
 		fmt.Println(" example:")
 		fmt.Println(" dataloaden 'UserLoader int []*github.com/my/package.User'")
@@ -20,8 +26,13 @@ func main() {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(2)
 	}
-
-	if err := generator.Generate(os.Args[1], os.Args[2], os.Args[3], wd); err != nil {
+	if err := generator.Generate(&generator.GenerateInput{
+		Name:       args[0],
+		KeyType:    args[1],
+		ValueType:  args[2],
+		WorkingDir: wd,
+		Output:     *output,
+	}); err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(2)
 	}
