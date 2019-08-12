@@ -12,7 +12,7 @@ var tpl = template.Must(template.New("generated").
 package {{.Package}}
 
 import (
-	"fmt"
+    "fmt"
     "sync"
     "time"
 
