@@ -234,7 +234,7 @@ func (b *userLoaderBatch) end(l *UserLoader) {
 				b.error = []error{fmt.Errorf("%v", r)}
 			}
 		}
+		close(b.done)
 	}()
 	b.data, b.error = l.fetch(b.keys)
-	close(b.done)
 }
