@@ -59,7 +59,7 @@ func TestUserLoader(t *testing.T) {
 
 		t.Run("load many users", func(t *testing.T) {
 			t.Parallel()
-			u, err := dl.LoadAll([]int{2, 10, 20, 4})
+			u, err := dl.LoadAll([]int{2, 30, 20, 4})
 			require.Equal(t, u[0][0].Name, "user 2")
 			require.Error(t, err[1])
 			require.Error(t, err[2])
