@@ -170,6 +170,9 @@ func (l *UserLoader) Clear(key string) {
 // Clear all data from cache
 func (l *UserLoader) ClearAll() {
 	l.mu.Lock()
+	if l.cache == nil {
+		return
+	}
 	for key, _ := range l.cache {
 		delete(l.cache, key)
 	}

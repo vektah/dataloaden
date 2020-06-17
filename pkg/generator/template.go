@@ -192,6 +192,9 @@ func (l *{{.Name}}) Clear(key {{.KeyType}}) {
 // Clear all data from cache
 func (l *{{.Name}}) ClearAll() {
 	l.mu.Lock()
+	if l.cache == nil {
+		return
+	}
 	for key, _ := range l.cache {
 		delete(l.cache, key)
 	}
