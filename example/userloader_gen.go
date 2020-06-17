@@ -167,6 +167,15 @@ func (l *UserLoader) Clear(key string) {
 	l.mu.Unlock()
 }
 
+// Clear all data from cache
+func (l *UserLoader) ClearAll() {
+	l.mu.Lock()
+	for key, _ := range l.cache {
+		delete(l.cache, key)
+	}
+	l.mu.Unlock()
+}
+
 func (l *UserLoader) unsafeSet(key string, value *User) {
 	if l.cache == nil {
 		l.cache = map[string]*User{}
