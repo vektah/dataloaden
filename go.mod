@@ -1,4 +1,4 @@
-module dataloaden
+module github.com/kamikazezirou/dataloaden
 
 go 1.17
 
