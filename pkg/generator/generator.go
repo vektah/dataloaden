@@ -3,7 +3,9 @@ package generator
 import (
 	"bytes"
 	"fmt"
+	"golang.org/x/mod/modfile"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -127,15 +129,63 @@ func getData(name string, keyType string, valueType string, wd string) (template
 }
 
 func getPackage(dir string) *packages.Package {
-	p, _ := packages.Load(&packages.Config{
+	p, err := packages.Load(&packages.Config{
 		Dir: dir,
 	}, ".")
+
+	if err != nil {
+		return nil
+	}
 
 	if len(p) != 1 {
 		return nil
 	}
 
-	return p[0]
+	if len(p[0].GoFiles) > 0 {
+		return p[0]
+	}
+
+	pkg, _ := getDefaultPackage(dir)
+	return pkg
+}
+
+func getDefaultPackage(dir string) (*packages.Package, error) {
+	modDir, err := findGoMod(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	mod, err := os.ReadFile(modDir + "/go.mod")
+	if err != nil {
+		return nil, err
+	}
+
+	modulePath := modfile.ModulePath(mod)
+	pkgName := filepath.Base(dir)
+	pkgPath := modulePath + strings.Replace(dir, modDir, "", -1)
+
+	return &packages.Package{
+		Name:    pkgName,
+		PkgPath: pkgPath,
+	}, nil
+}
+
+func findGoMod(dir string) (modDir string, err error) {
+	pwd := dir
+	for {
+		_, err := os.Stat(pwd + "/go.mod")
+		if err == nil {
+			break
+		}
+
+		parent := filepath.Dir(pwd)
+		if parent == pwd {
+			return "", errors.New("Not Found go.mod")
+		} else {
+			pwd = parent
+		}
+	}
+	return pwd, nil
 }
 
 func writeTemplate(filepath string, data templateData) error {
