@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vektah/dataloaden"
 	"github.com/vektah/dataloaden/example"
 )
 
@@ -16,10 +16,10 @@ func TestUserLoader(t *testing.T) {
 	var fetches [][]int
 	var mu sync.Mutex
 
-	dl := &UserSliceLoader{
-		wait:     10 * time.Millisecond,
-		maxBatch: 5,
-		fetch: func(keys []int) (users [][]example.User, errors []error) {
+	dl := dataloaden.NewLoader(dataloaden.LoaderConfig[int, []example.User]{
+		Wait:     10 * time.Millisecond,
+		MaxBatch: 5,
+		Fetch: func(keys []int) (users [][]example.User, errors []error) {
 			mu.Lock()
 			fetches = append(fetches, keys)
 			mu.Unlock()
@@ -39,7 +39,7 @@ func TestUserLoader(t *testing.T) {
 			}
 			return users, errors
 		},
-	}
+	})
 
 	t.Run("fetch concurrent data", func(t *testing.T) {
 		t.Run("load user successfully", func(t *testing.T) {
@@ -86,8 +86,8 @@ func TestUserLoader(t *testing.T) {
 		defer mu.Unlock()
 
 		require.Len(t, fetches, 2)
-		assert.Len(t, fetches[0], 5)
-		assert.Len(t, fetches[1], 3)
+		require.Len(t, fetches[0], 5)
+		require.Len(t, fetches[1], 3)
 	})
 
 	t.Run("fetch more", func(t *testing.T) {

@@ -7,18 +7,18 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vektah/dataloaden"
 )
 
 func TestUserLoader(t *testing.T) {
 	var fetches [][]string
 	var mu sync.Mutex
 
-	dl := &UserLoader{
-		wait:     10 * time.Millisecond,
-		maxBatch: 5,
-		fetch: func(keys []string) ([]*User, []error) {
+	dl := dataloaden.NewLoader(dataloaden.LoaderConfig[string, *User]{
+		Wait:     10 * time.Millisecond,
+		MaxBatch: 5,
+		Fetch: func(keys []string) ([]*User, []error) {
 			mu.Lock()
 			fetches = append(fetches, keys)
 			mu.Unlock()
@@ -35,7 +35,7 @@ func TestUserLoader(t *testing.T) {
 			}
 			return users, errors
 		},
-	}
+	})
 
 	t.Run("fetch concurrent data", func(t *testing.T) {
 		t.Run("load user successfully", func(t *testing.T) {
@@ -81,8 +81,8 @@ func TestUserLoader(t *testing.T) {
 		defer mu.Unlock()
 
 		require.Len(t, fetches, 2)
-		assert.Len(t, fetches[0], 5)
-		assert.Len(t, fetches[1], 3)
+		require.Len(t, fetches[0], 5)
+		require.Len(t, fetches[1], 3)
 	})
 
 	t.Run("fetch more", func(t *testing.T) {
@@ -153,7 +153,9 @@ func TestUserLoader(t *testing.T) {
 			{ID: "Omega", Name: "Omega"},
 		}
 		for _, user := range users {
-			dl.Prime(user.ID, &user)
+			u := &user
+			cpy := *u
+			dl.Prime(user.ID, &cpy)
 		}
 
 		u, err := dl.Load("Alpha")

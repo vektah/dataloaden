@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: golang:1.11
+      - image: golang:1.18
     working_directory: /projects/dataloaden
     steps: &steps
       - checkout
