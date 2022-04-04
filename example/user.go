@@ -1,9 +1,9 @@
-//go:generate go run github.com/vektah/dataloaden UserLoader string *github.com/vektah/dataloaden/example.User
-
 package example
 
 import (
 	"time"
+
+	"github.com/vektah/dataloaden"
 )
 
 // User is some kind of database backed model
@@ -14,11 +14,11 @@ type User struct {
 
 // NewLoader will collect user requests for 2 milliseconds and send them as a single batch to the fetch func
 // normally fetch would be a database call.
-func NewLoader() *UserLoader {
-	return &UserLoader{
-		wait:     2 * time.Millisecond,
-		maxBatch: 100,
-		fetch: func(keys []string) ([]*User, []error) {
+func NewLoader() *dataloaden.Loader[string, *User] {
+	return dataloaden.NewLoader(dataloaden.LoaderConfig[string, *User]{
+		Wait:     2 * time.Millisecond,
+		MaxBatch: 100,
+		Fetch: func(keys []string) ([]*User, []error) {
 			users := make([]*User, len(keys))
 			errors := make([]error, len(keys))
 
@@ -27,5 +27,5 @@ func NewLoader() *UserLoader {
 			}
 			return users, errors
 		},
-	}
+	})
 }

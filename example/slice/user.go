@@ -1,19 +1,18 @@
-//go:generate go run github.com/vektah/dataloaden UserSliceLoader int []github.com/vektah/dataloaden/example.User
-
 package slice
 
 import (
 	"strconv"
 	"time"
 
+	"github.com/vektah/dataloaden"
 	"github.com/vektah/dataloaden/example"
 )
 
-func NewLoader() *UserSliceLoader {
-	return &UserSliceLoader{
-		wait:     2 * time.Millisecond,
-		maxBatch: 100,
-		fetch: func(keys []int) ([][]example.User, []error) {
+func NewLoader() *dataloaden.Loader[int, []example.User] {
+	return dataloaden.NewLoader(dataloaden.LoaderConfig[int, []example.User]{
+		Wait:     2 * time.Millisecond,
+		MaxBatch: 100,
+		Fetch: func(keys []int) ([][]example.User, []error) {
 			users := make([][]example.User, len(keys))
 			errors := make([]error, len(keys))
 
@@ -22,5 +21,5 @@ func NewLoader() *UserSliceLoader {
 			}
 			return users, errors
 		},
-	}
+	})
 }
