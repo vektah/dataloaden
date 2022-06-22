@@ -29,14 +29,68 @@ type {{.Name}}Config struct {
 
 	// MaxBatch will limit the maximum number of keys to send in one batch, 0 = not limit
 	MaxBatch int
+	
+	// {{.Name}}Cache adds ability to change the caching strategy
+	Cache {{.Name}}Cache
+}
+
+type {{.Name}}Cache interface {
+	Set(key {{.KeyType.String}}, value {{.ValType.String}})
+	Get(key {{.KeyType.String}}) ({{.ValType.String}}, bool)
+	Del(key {{.KeyType.String}})
+}
+
+type {{.Name}}DefaultCache struct {
+	cache map[{{.KeyType.String}}]{{.ValType.String}}
+}
+
+func New{{.Name}}DefaultCache() *{{.Name}}DefaultCache {
+	return &{{.Name}}DefaultCache{cache: make(map[{{.KeyType.String}}]{{.ValType.String}})}
+}
+
+func (d *{{.Name}}DefaultCache) Set(key {{.KeyType.String}}, value {{.ValType.String}}) {
+	d.cache[key] = value
+}
+
+func (d *{{.Name}}DefaultCache) Get(key {{.KeyType.String}}) ({{.ValType.String}}, bool) {
+	it, ok := d.cache[key]
+	return it, ok	
+}
+
+func (d *{{.Name}}DefaultCache) Del(key {{.KeyType.String}}) {
+	delete(d.cache, key)
+}
+
+type {{.Name}}NullCache struct {
+}
+
+func (d *{{.Name}}NullCache) Set(key {{.KeyType.String}}, value {{.ValType.String}}) {
+}
+
+func (d *{{.Name}}NullCache) Get(key {{.KeyType.String}}) ({{.ValType.String}}, bool) {
+	{{- if .ValType.IsPtr }}
+		return nil, false
+	{{- else if .ValType.IsSlice }}
+		return nil, false
+	{{- else }}
+		return {{.ValType.String}}{}, false
+	{{- end }}	
+}
+
+func (d *{{.Name}}NullCache) Del(key {{.KeyType.String}}) {
 }
 
 // New{{.Name}} creates a new {{.Name}} given a fetch, wait, and maxBatch
 func New{{.Name}}(config {{.Name}}Config) *{{.Name}} {
+	cache := config.Cache
+	if cache == nil {
+		cache = New{{.Name}}DefaultCache()
+	}
 	return &{{.Name}}{
 		fetch: config.Fetch,
 		wait: config.Wait,
 		maxBatch: config.MaxBatch,
+		cache: cache,
 	}
 }
 
@@ -54,7 +108,7 @@ type {{.Name}} struct {
 	// INTERNAL
 
 	// lazily created cache
-	cache map[{{.KeyType.String}}]{{.ValType.String}}
+	cache {{.Name}}Cache
 
 	// the current batch. keys will continue to be collected until timeout is hit,
 	// then everything will be sent to the fetch method and out to the listeners
@@ -82,7 +136,7 @@ func (l *{{.Name}}) Load(key {{.KeyType.String}}) ({{.ValType.String}}, error) {
 // different data loaders without blocking until the thunk is called.
 func (l *{{.Name}}) LoadThunk(key {{.KeyType.String}}) func() ({{.ValType.String}}, error) {
 	l.mu.Lock()
-	if it, ok := l.cache[key]; ok {
+	if it, ok := l.getCache().Get(key); ok {
 		l.mu.Unlock()
 		return func() ({{.ValType.String}}, error) {
 			return it, nil
@@ -162,7 +216,7 @@ func (l *{{.Name}}) LoadAllThunk(keys []{{.KeyType}}) (func() ([]{{.ValType.Stri
 func (l *{{.Name}}) Prime(key {{.KeyType}}, value {{.ValType.String}}) bool {
 	l.mu.Lock()
 	var found bool
-	if _, found = l.cache[key]; !found {
+	if _, found = l.getCache().Get(key); !found {
 		{{- if .ValType.IsPtr }}
 			// make a copy when writing to the cache, its easy to pass a pointer in from a loop var
 			// and end up with the whole cache pointing to the same value.
@@ -185,15 +239,20 @@ func (l *{{.Name}}) Prime(key {{.KeyType}}, value {{.ValType.String}}) bool {
 // Clear the value at key from the cache, if it exists
 func (l *{{.Name}}) Clear(key {{.KeyType}}) {
 	l.mu.Lock()
-	delete(l.cache, key)
+	l.getCache().Del(key)
 	l.mu.Unlock()
 }
 
-func (l *{{.Name}}) unsafeSet(key {{.KeyType}}, value {{.ValType.String}}) {
+func (l *{{.Name}}) unsafeSet(key {{.KeyType}}, value {{.ValType.String}}) {	
+	l.getCache().Set(key, value)
+}
+
+// getCache returns cache object or initializes it
+func (l *{{.Name}}) getCache() {{.Name}}Cache {
 	if l.cache == nil {
-		l.cache = map[{{.KeyType}}]{{.ValType.String}}{}
+		l.cache = New{{.Name}}DefaultCache()
 	}
-	l.cache[key] = value
+	return l.cache
 }
 
 // keyIndex will return the location of the key in the batch, if its not found
