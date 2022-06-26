@@ -19,14 +19,62 @@ type UserLoaderConfig struct {
 
 	// MaxBatch will limit the maximum number of keys to send in one batch, 0 = not limit
 	MaxBatch int
+
+	// UserLoaderCache adds ability to change the caching strategy
+	Cache UserLoaderCache
+}
+
+type UserLoaderCache interface {
+	Set(key string, value *example.User)
+	Get(key string) (*example.User, bool)
+	Del(key string)
+}
+
+type UserLoaderDefaultCache struct {
+	cache map[string]*example.User
+}
+
+func NewUserLoaderDefaultCache() *UserLoaderDefaultCache {
+	return &UserLoaderDefaultCache{cache: make(map[string]*example.User)}
+}
+
+func (d *UserLoaderDefaultCache) Set(key string, value *example.User) {
+	d.cache[key] = value
+}
+
+func (d *UserLoaderDefaultCache) Get(key string) (*example.User, bool) {
+	it, ok := d.cache[key]
+	return it, ok
+}
+
+func (d *UserLoaderDefaultCache) Del(key string) {
+	delete(d.cache, key)
+}
+
+type UserLoaderNullCache struct {
+}
+
+func (d *UserLoaderNullCache) Set(key string, value *example.User) {
+}
+
+func (d *UserLoaderNullCache) Get(key string) (*example.User, bool) {
+	return nil, false
+}
+
+func (d *UserLoaderNullCache) Del(key string) {
 }
 
 // NewUserLoader creates a new UserLoader given a fetch, wait, and maxBatch
 func NewUserLoader(config UserLoaderConfig) *UserLoader {
+	cache := config.Cache
+	if cache == nil {
+		cache = NewUserLoaderDefaultCache()
+	}
 	return &UserLoader{
 		fetch:    config.Fetch,
 		wait:     config.Wait,
 		maxBatch: config.MaxBatch,
+		cache:    cache,
 	}
 }
 
@@ -44,7 +92,7 @@ type UserLoader struct {
 	// INTERNAL
 
 	// lazily created cache
-	cache map[string]*example.User
+	cache UserLoaderCache
 
 	// the current batch. keys will continue to be collected until timeout is hit,
 	// then everything will be sent to the fetch method and out to the listeners
@@ -72,7 +120,7 @@ func (l *UserLoader) Load(key string) (*example.User, error) {
 // different data loaders without blocking until the thunk is called.
 func (l *UserLoader) LoadThunk(key string) func() (*example.User, error) {
 	l.mu.Lock()
-	if it, ok := l.cache[key]; ok {
+	if it, ok := l.getCache().Get(key); ok {
 		l.mu.Unlock()
 		return func() (*example.User, error) {
 			return it, nil
@@ -152,7 +200,7 @@ func (l *UserLoader) LoadAllThunk(keys []string) func() ([]*example.User, []erro
 func (l *UserLoader) Prime(key string, value *example.User) bool {
 	l.mu.Lock()
 	var found bool
-	if _, found = l.cache[key]; !found {
+	if _, found = l.getCache().Get(key); !found {
 		// make a copy when writing to the cache, its easy to pass a pointer in from a loop var
 		// and end up with the whole cache pointing to the same value.
 		cpy := *value
@@ -165,15 +213,20 @@ func (l *UserLoader) Prime(key string, value *example.User) bool {
 // Clear the value at key from the cache, if it exists
 func (l *UserLoader) Clear(key string) {
 	l.mu.Lock()
-	delete(l.cache, key)
+	l.getCache().Del(key)
 	l.mu.Unlock()
 }
 
 func (l *UserLoader) unsafeSet(key string, value *example.User) {
+	l.getCache().Set(key, value)
+}
+
+// getCache returns cache object or initializes it
+func (l *UserLoader) getCache() UserLoaderCache {
 	if l.cache == nil {
-		l.cache = map[string]*example.User{}
+		l.cache = NewUserLoaderDefaultCache()
 	}
-	l.cache[key] = value
+	return l.cache
 }
 
 // keyIndex will return the location of the key in the batch, if its not found

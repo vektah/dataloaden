@@ -19,14 +19,62 @@ type UserSliceLoaderConfig struct {
 
 	// MaxBatch will limit the maximum number of keys to send in one batch, 0 = not limit
 	MaxBatch int
+
+	// UserSliceLoaderCache adds ability to change the caching strategy
+	Cache UserSliceLoaderCache
+}
+
+type UserSliceLoaderCache interface {
+	Set(key int, value []example.User)
+	Get(key int) ([]example.User, bool)
+	Del(key int)
+}
+
+type UserSliceLoaderDefaultCache struct {
+	cache map[int][]example.User
+}
+
+func NewUserSliceLoaderDefaultCache() *UserSliceLoaderDefaultCache {
+	return &UserSliceLoaderDefaultCache{cache: make(map[int][]example.User)}
+}
+
+func (d *UserSliceLoaderDefaultCache) Set(key int, value []example.User) {
+	d.cache[key] = value
+}
+
+func (d *UserSliceLoaderDefaultCache) Get(key int) ([]example.User, bool) {
+	it, ok := d.cache[key]
+	return it, ok
+}
+
+func (d *UserSliceLoaderDefaultCache) Del(key int) {
+	delete(d.cache, key)
+}
+
+type UserSliceLoaderNullCache struct {
+}
+
+func (d *UserSliceLoaderNullCache) Set(key int, value []example.User) {
+}
+
+func (d *UserSliceLoaderNullCache) Get(key int) ([]example.User, bool) {
+	return nil, false
+}
+
+func (d *UserSliceLoaderNullCache) Del(key int) {
 }
 
 // NewUserSliceLoader creates a new UserSliceLoader given a fetch, wait, and maxBatch
 func NewUserSliceLoader(config UserSliceLoaderConfig) *UserSliceLoader {
+	cache := config.Cache
+	if cache == nil {
+		cache = NewUserSliceLoaderDefaultCache()
+	}
 	return &UserSliceLoader{
 		fetch:    config.Fetch,
 		wait:     config.Wait,
 		maxBatch: config.MaxBatch,
+		cache:    cache,
 	}
 }
 
@@ -44,7 +92,7 @@ type UserSliceLoader struct {
 	// INTERNAL
 
 	// lazily created cache
-	cache map[int][]example.User
+	cache UserSliceLoaderCache
 
 	// the current batch. keys will continue to be collected until timeout is hit,
 	// then everything will be sent to the fetch method and out to the listeners
@@ -72,7 +120,7 @@ func (l *UserSliceLoader) Load(key int) ([]example.User, error) {
 // different data loaders without blocking until the thunk is called.
 func (l *UserSliceLoader) LoadThunk(key int) func() ([]example.User, error) {
 	l.mu.Lock()
-	if it, ok := l.cache[key]; ok {
+	if it, ok := l.getCache().Get(key); ok {
 		l.mu.Unlock()
 		return func() ([]example.User, error) {
 			return it, nil
@@ -152,7 +200,7 @@ func (l *UserSliceLoader) LoadAllThunk(keys []int) func() ([][]example.User, []e
 func (l *UserSliceLoader) Prime(key int, value []example.User) bool {
 	l.mu.Lock()
 	var found bool
-	if _, found = l.cache[key]; !found {
+	if _, found = l.getCache().Get(key); !found {
 		// make a copy when writing to the cache, its easy to pass a pointer in from a loop var
 		// and end up with the whole cache pointing to the same value.
 		cpy := make([]example.User, len(value))
@@ -166,15 +214,20 @@ func (l *UserSliceLoader) Prime(key int, value []example.User) bool {
 // Clear the value at key from the cache, if it exists
 func (l *UserSliceLoader) Clear(key int) {
 	l.mu.Lock()
-	delete(l.cache, key)
+	l.getCache().Del(key)
 	l.mu.Unlock()
 }
 
 func (l *UserSliceLoader) unsafeSet(key int, value []example.User) {
+	l.getCache().Set(key, value)
+}
+
+// getCache returns cache object or initializes it
+func (l *UserSliceLoader) getCache() UserSliceLoaderCache {
 	if l.cache == nil {
-		l.cache = map[int][]example.User{}
+		l.cache = NewUserSliceLoaderDefaultCache()
 	}
-	l.cache[key] = value
+	return l.cache
 }
 
 // keyIndex will return the location of the key in the batch, if its not found
