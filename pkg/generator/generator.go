@@ -3,7 +3,7 @@ package generator
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -149,7 +149,7 @@ func writeTemplate(filepath string, data templateData) error {
 		return errors.Wrap(err, "unable to gofmt")
 	}
 
-	if err := ioutil.WriteFile(filepath, src, 0644); err != nil {
+	if err := os.WriteFile(filepath, src, 0644); err != nil {
 		return errors.Wrap(err, "writing output")
 	}
 
