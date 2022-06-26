@@ -3,6 +3,7 @@
 package slice
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -19,6 +20,10 @@ type UserSliceLoaderConfig struct {
 
 	// MaxBatch will limit the maximum number of keys to send in one batch, 0 = not limit
 	MaxBatch int
+
+	// Recover is a function to transform a recovered value into an error.
+	// If a function is not supplied, the value is formatted with fmt.Errorf("%v", v).
+	Recover func(v interface{}) error
 }
 
 // NewUserSliceLoader creates a new UserSliceLoader given a fetch, wait, and maxBatch
@@ -27,6 +32,7 @@ func NewUserSliceLoader(config UserSliceLoaderConfig) *UserSliceLoader {
 		fetch:    config.Fetch,
 		wait:     config.Wait,
 		maxBatch: config.MaxBatch,
+		recover:  config.Recover,
 	}
 }
 
@@ -40,6 +46,9 @@ type UserSliceLoader struct {
 
 	// this will limit the maximum number of keys to send in one batch, 0 = no limit
 	maxBatch int
+
+	// this transforms recovered panic values into errors
+	recover func(v interface{}) error
 
 	// INTERNAL
 
@@ -220,6 +229,15 @@ func (b *userSliceLoaderBatch) startTimer(l *UserSliceLoader) {
 }
 
 func (b *userSliceLoaderBatch) end(l *UserSliceLoader) {
+	defer func() {
+		if r := recover(); r != nil {
+			if l.recover != nil {
+				b.error = []error{l.recover(r)}
+			} else {
+				b.error = []error{fmt.Errorf("%v", r)}
+			}
+		}
+		close(b.done)
+	}()
 	b.data, b.error = l.fetch(b.keys)
-	close(b.done)
 }

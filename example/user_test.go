@@ -1,6 +1,7 @@
 package example
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -29,6 +30,8 @@ func TestUserLoader(t *testing.T) {
 			for i, key := range keys {
 				if strings.HasPrefix(key, "E") {
 					errors[i] = fmt.Errorf("user not found")
+				} else if strings.HasPrefix(key, "P") {
+					panic("something bad happened")
 				} else {
 					users[i] = &User{ID: key, Name: "user " + key}
 				}
@@ -192,5 +195,22 @@ func TestUserLoader(t *testing.T) {
 		require.NoError(t, err2[0])
 		require.Error(t, err2[1])
 		require.Equal(t, "user U6", users2[0].Name)
+	})
+
+	t.Run("fetch panic with recover func", func(t *testing.T) {
+		expectedErr := errors.New("transformed")
+		dl.recover = func(interface{}) error {
+			return expectedErr
+		}
+		u, err := dl.Load("P1")
+		require.Nil(t, u)
+		require.Equal(t, err, expectedErr)
+		dl.recover = nil
+	})
+
+	t.Run("fetch panic with no recover func", func(t *testing.T) {
+		u, err := dl.Load("P1")
+		require.Nil(t, u)
+		require.Error(t, err)
 	})
 }

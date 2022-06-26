@@ -12,6 +12,7 @@ var tpl = template.Must(template.New("generated").
 package {{.Package}}
 
 import (
+    "fmt"
     "sync"
     "time"
 
@@ -21,7 +22,7 @@ import (
 
 // {{.Name}}Config captures the config to create a new {{.Name}}
 type {{.Name}}Config struct {
-	// Fetch is a method that provides the data for the loader 
+	// Fetch is a method that provides the data for the loader
 	Fetch func(keys []{{.KeyType.String}}) ([]{{.ValType.String}}, []error)
 
 	// Wait is how long wait before sending a batch
@@ -29,6 +30,10 @@ type {{.Name}}Config struct {
 
 	// MaxBatch will limit the maximum number of keys to send in one batch, 0 = not limit
 	MaxBatch int
+
+	// Recover is a function to transform a recovered value into an error.
+	// If a function is not supplied, the value is formatted with fmt.Errorf("%v", v).
+	Recover func(v interface{}) error
 }
 
 // New{{.Name}} creates a new {{.Name}} given a fetch, wait, and maxBatch
@@ -37,10 +42,11 @@ func New{{.Name}}(config {{.Name}}Config) *{{.Name}} {
 		fetch: config.Fetch,
 		wait: config.Wait,
 		maxBatch: config.MaxBatch,
+		recover: config.Recover,
 	}
 }
 
-// {{.Name}} batches and caches requests          
+// {{.Name}} batches and caches requests
 type {{.Name}} struct {
 	// this method provides the data for the loader
 	fetch func(keys []{{.KeyType.String}}) ([]{{.ValType.String}}, []error)
@@ -50,6 +56,9 @@ type {{.Name}} struct {
 
 	// this will limit the maximum number of keys to send in one batch, 0 = no limit
 	maxBatch int
+
+	// this transforms recovered panic values into errors
+	recover func(v interface{}) error
 
 	// INTERNAL
 
@@ -239,7 +248,16 @@ func (b *{{.Name|lcFirst}}Batch) startTimer(l *{{.Name}}) {
 }
 
 func (b *{{.Name|lcFirst}}Batch) end(l *{{.Name}}) {
+	defer func() {
+		if r := recover(); r != nil {
+			if l.recover != nil {
+				b.error = []error{l.recover(r)}
+			} else {
+				b.error = []error{fmt.Errorf("%v", r)}
+			}
+		}
+		close(b.done)
+	}()
 	b.data, b.error = l.fetch(b.keys)
-	close(b.done)
 }
 `))
