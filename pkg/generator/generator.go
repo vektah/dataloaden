@@ -100,6 +100,9 @@ func getData(name string, keyType string, valueType string, wd string) (template
 	if genPkg == nil {
 		return templateData{}, fmt.Errorf("unable to find package info for " + wd)
 	}
+	if genPkg.Name == "" {
+		return templateData{}, fmt.Errorf("unable to find package name for " + wd)
+	}
 
 	var err error
 	data.Name = name
