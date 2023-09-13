@@ -3,6 +3,7 @@
 package example
 
 import (
+	"context"
 	"time"
 )
 
@@ -18,7 +19,7 @@ func NewLoader() *UserLoader {
 	return &UserLoader{
 		wait:     2 * time.Millisecond,
 		maxBatch: 100,
-		fetch: func(keys []string) ([]*User, []error) {
+		fetch: func(fCtx context.Context, keys []string) ([]*User, []error) {
 			users := make([]*User, len(keys))
 			errors := make([]error, len(keys))
 

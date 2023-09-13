@@ -3,6 +3,7 @@
 package slice
 
 import (
+	"context"
 	"strconv"
 	"time"
 
@@ -13,7 +14,7 @@ func NewLoader() *UserSliceLoader {
 	return &UserSliceLoader{
 		wait:     2 * time.Millisecond,
 		maxBatch: 100,
-		fetch: func(keys []int) ([][]example.User, []error) {
+		fetch: func(ctx context.Context, keys []int) ([][]example.User, []error) {
 			users := make([][]example.User, len(keys))
 			errors := make([]error, len(keys))
 

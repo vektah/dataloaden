@@ -3,6 +3,7 @@
 package example
 
 import (
+	"context"
 	"sync"
 	"time"
 )
@@ -10,7 +11,7 @@ import (
 // UserLoaderConfig captures the config to create a new UserLoader
 type UserLoaderConfig struct {
 	// Fetch is a method that provides the data for the loader
-	Fetch func(keys []string) ([]*User, []error)
+	Fetch func(ctx context.Context, keys []string) ([]*User, []error)
 
 	// Wait is how long wait before sending a batch
 	Wait time.Duration
@@ -31,7 +32,7 @@ func NewUserLoader(config UserLoaderConfig) *UserLoader {
 // UserLoader batches and caches requests
 type UserLoader struct {
 	// this method provides the data for the loader
-	fetch func(keys []string) ([]*User, []error)
+	fetch func(ctx context.Context, keys []string) ([]*User, []error)
 
 	// how long to done before sending a batch
 	wait time.Duration
@@ -61,14 +62,14 @@ type userLoaderBatch struct {
 }
 
 // Load a User by key, batching and caching will be applied automatically
-func (l *UserLoader) Load(key string) (*User, error) {
-	return l.LoadThunk(key)()
+func (l *UserLoader) Load(ctx context.Context, key string) (*User, error) {
+	return l.LoadThunk(ctx, key)()
 }
 
 // LoadThunk returns a function that when called will block waiting for a User.
 // This method should be used if you want one goroutine to make requests to many
 // different data loaders without blocking until the thunk is called.
-func (l *UserLoader) LoadThunk(key string) func() (*User, error) {
+func (l *UserLoader) LoadThunk(ctx context.Context, key string) func() (*User, error) {
 	l.mu.Lock()
 	if it, ok := l.cache[key]; ok {
 		l.mu.Unlock()
@@ -80,7 +81,7 @@ func (l *UserLoader) LoadThunk(key string) func() (*User, error) {
 		l.batch = &userLoaderBatch{done: make(chan struct{})}
 	}
 	batch := l.batch
-	pos := batch.keyIndex(l, key)
+	pos := batch.keyIndex(ctx, l, key)
 	l.mu.Unlock()
 
 	return func() (*User, error) {
@@ -111,11 +112,11 @@ func (l *UserLoader) LoadThunk(key string) func() (*User, error) {
 
 // LoadAll fetches many keys at once. It will be broken into appropriate sized
 // sub batches depending on how the loader is configured
-func (l *UserLoader) LoadAll(keys []string) ([]*User, []error) {
+func (l *UserLoader) LoadAll(ctx context.Context, keys []string) ([]*User, []error) {
 	results := make([]func() (*User, error), len(keys))
 
 	for i, key := range keys {
-		results[i] = l.LoadThunk(key)
+		results[i] = l.LoadThunk(ctx, key)
 	}
 
 	users := make([]*User, len(keys))
@@ -129,10 +130,10 @@ func (l *UserLoader) LoadAll(keys []string) ([]*User, []error) {
 // LoadAllThunk returns a function that when called will block waiting for a Users.
 // This method should be used if you want one goroutine to make requests to many
 // different data loaders without blocking until the thunk is called.
-func (l *UserLoader) LoadAllThunk(keys []string) func() ([]*User, []error) {
+func (l *UserLoader) LoadAllThunk(ctx context.Context, keys []string) func() ([]*User, []error) {
 	results := make([]func() (*User, error), len(keys))
 	for i, key := range keys {
-		results[i] = l.LoadThunk(key)
+		results[i] = l.LoadThunk(ctx, key)
 	}
 	return func() ([]*User, []error) {
 		users := make([]*User, len(keys))
@@ -176,7 +177,7 @@ func (l *UserLoader) unsafeSet(key string, value *User) {
 
 // keyIndex will return the location of the key in the batch, if its not found
 // it will add the key to the batch
-func (b *userLoaderBatch) keyIndex(l *UserLoader, key string) int {
+func (b *userLoaderBatch) keyIndex(ctx context.Context, l *UserLoader, key string) int {
 	for i, existingKey := range b.keys {
 		if key == existingKey {
 			return i
@@ -186,21 +187,21 @@ func (b *userLoaderBatch) keyIndex(l *UserLoader, key string) int {
 	pos := len(b.keys)
 	b.keys = append(b.keys, key)
 	if pos == 0 {
-		go b.startTimer(l)
+		go b.startTimer(ctx, l)
 	}
 
 	if l.maxBatch != 0 && pos >= l.maxBatch-1 {
 		if !b.closing {
 			b.closing = true
 			l.batch = nil
-			go b.end(l)
+			go b.end(ctx, l)
 		}
 	}
 
 	return pos
 }
 
-func (b *userLoaderBatch) startTimer(l *UserLoader) {
+func (b *userLoaderBatch) startTimer(ctx context.Context, l *UserLoader) {
 	time.Sleep(l.wait)
 	l.mu.Lock()
 
@@ -213,10 +214,10 @@ func (b *userLoaderBatch) startTimer(l *UserLoader) {
 	l.batch = nil
 	l.mu.Unlock()
 
-	b.end(l)
+	b.end(ctx, l)
 }
 
-func (b *userLoaderBatch) end(l *UserLoader) {
-	b.data, b.error = l.fetch(b.keys)
+func (b *userLoaderBatch) end(ctx context.Context, l *UserLoader) {
+	b.data, b.error = l.fetch(ctx, b.keys)
 	close(b.done)
 }

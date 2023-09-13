@@ -24,7 +24,7 @@ func NewUserLoader() *UserLoader {
 	return &UserLoader{
 		wait:     2 * time.Millisecond,
 		maxBatch: 100,
-		fetch: func(keys []string) ([]*User, []error) {
+		fetch: func(ctx context.Context, keys []string) ([]*User, []error) {
 			users := make([]*User, len(keys))
 			errors := make([]error, len(keys))
 
@@ -41,7 +41,7 @@ Then wherever you want to call the dataloader
 ```go
 loader := NewUserLoader()
 
-user, err := loader.Load("123")
+user, err := loader.Load(context.Background(), "123")
 ```
 
 This method will block for a short amount of time, waiting for any other similar requests to come in, call your fetch
@@ -87,7 +87,7 @@ func NewLoader(ctx context.Context) *UserLoader {
 	return &UserLoader{
 		wait:     2 * time.Millisecond,
 		maxBatch: 100,
-		fetch: func(keys []string) ([]*User, []error) {
+		fetch: func(ctx context.Context, keys []string) ([]*User, []error) {
 			// you now have a ctx to work with
 		},
 	}
