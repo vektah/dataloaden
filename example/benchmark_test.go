@@ -1,6 +1,7 @@
 package example
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"strconv"
@@ -13,7 +14,7 @@ func BenchmarkLoader(b *testing.B) {
 	dl := &UserLoader{
 		wait:     500 * time.Nanosecond,
 		maxBatch: 100,
-		fetch: func(keys []string) ([]*User, []error) {
+		fetch: func(fCtx context.Context, keys []string) ([]*User, []error) {
 			users := make([]*User, len(keys))
 			errors := make([]error, len(keys))
 
@@ -33,7 +34,7 @@ func BenchmarkLoader(b *testing.B) {
 	b.Run("caches", func(b *testing.B) {
 		thunks := make([]func() (*User, error), b.N)
 		for i := 0; i < b.N; i++ {
-			thunks[i] = dl.LoadThunk(strconv.Itoa(rand.Int() % 300))
+			thunks[i] = dl.LoadThunk(context.Background(), strconv.Itoa(rand.Int()%300))
 		}
 
 		for i := 0; i < b.N; i++ {
@@ -44,7 +45,7 @@ func BenchmarkLoader(b *testing.B) {
 	b.Run("random spread", func(b *testing.B) {
 		thunks := make([]func() (*User, error), b.N)
 		for i := 0; i < b.N; i++ {
-			thunks[i] = dl.LoadThunk(strconv.Itoa(rand.Int()))
+			thunks[i] = dl.LoadThunk(context.Background(), strconv.Itoa(rand.Int()))
 		}
 
 		for i := 0; i < b.N; i++ {
@@ -58,7 +59,7 @@ func BenchmarkLoader(b *testing.B) {
 			wg.Add(1)
 			go func() {
 				for j := 0; j < b.N; j++ {
-					dl.Load(strconv.Itoa(rand.Int()))
+					dl.Load(context.Background(), strconv.Itoa(rand.Int()))
 				}
 				wg.Done()
 			}()

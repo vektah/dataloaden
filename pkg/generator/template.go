@@ -12,6 +12,7 @@ var tpl = template.Must(template.New("generated").
 package {{.Package}}
 
 import (
+    "context"
     "sync"
     "time"
 
@@ -22,7 +23,7 @@ import (
 // {{.Name}}Config captures the config to create a new {{.Name}}
 type {{.Name}}Config struct {
 	// Fetch is a method that provides the data for the loader 
-	Fetch func(keys []{{.KeyType.String}}) ([]{{.ValType.String}}, []error)
+	Fetch func(ctx context.Context, keys []{{.KeyType.String}}) ([]{{.ValType.String}}, []error)
 
 	// Wait is how long wait before sending a batch
 	Wait time.Duration
@@ -43,7 +44,7 @@ func New{{.Name}}(config {{.Name}}Config) *{{.Name}} {
 // {{.Name}} batches and caches requests          
 type {{.Name}} struct {
 	// this method provides the data for the loader
-	fetch func(keys []{{.KeyType.String}}) ([]{{.ValType.String}}, []error)
+	fetch func(ctx context.Context, keys []{{.KeyType.String}}) ([]{{.ValType.String}}, []error)
 
 	// how long to done before sending a batch
 	wait time.Duration
@@ -73,14 +74,14 @@ type {{.Name|lcFirst}}Batch struct {
 }
 
 // Load a {{.ValType.Name}} by key, batching and caching will be applied automatically
-func (l *{{.Name}}) Load(key {{.KeyType.String}}) ({{.ValType.String}}, error) {
-	return l.LoadThunk(key)()
+func (l *{{.Name}}) Load(ctx context.Context, key {{.KeyType.String}}) ({{.ValType.String}}, error) {
+	return l.LoadThunk(ctx, key)()
 }
 
 // LoadThunk returns a function that when called will block waiting for a {{.ValType.Name}}.
 // This method should be used if you want one goroutine to make requests to many
 // different data loaders without blocking until the thunk is called.
-func (l *{{.Name}}) LoadThunk(key {{.KeyType.String}}) func() ({{.ValType.String}}, error) {
+func (l *{{.Name}}) LoadThunk(ctx context.Context, key {{.KeyType.String}}) func() ({{.ValType.String}}, error) {
 	l.mu.Lock()
 	if it, ok := l.cache[key]; ok {
 		l.mu.Unlock()
@@ -92,7 +93,7 @@ func (l *{{.Name}}) LoadThunk(key {{.KeyType.String}}) func() ({{.ValType.String
 		l.batch = &{{.Name|lcFirst}}Batch{done: make(chan struct{})}
 	}
 	batch := l.batch
-	pos := batch.keyIndex(l, key)
+	pos := batch.keyIndex(ctx, l, key)
 	l.mu.Unlock()
 
 	return func() ({{.ValType.String}}, error) {
@@ -123,11 +124,11 @@ func (l *{{.Name}}) LoadThunk(key {{.KeyType.String}}) func() ({{.ValType.String
 
 // LoadAll fetches many keys at once. It will be broken into appropriate sized
 // sub batches depending on how the loader is configured
-func (l *{{.Name}}) LoadAll(keys []{{.KeyType}}) ([]{{.ValType.String}}, []error) {
+func (l *{{.Name}}) LoadAll(ctx context.Context, keys []{{.KeyType}}) ([]{{.ValType.String}}, []error) {
 	results := make([]func() ({{.ValType.String}}, error), len(keys))
 
 	for i, key := range keys {
-		results[i] = l.LoadThunk(key)
+		results[i] = l.LoadThunk(ctx, key)
 	}
 
 	{{.ValType.Name|lcFirst}}s := make([]{{.ValType.String}}, len(keys))
@@ -141,10 +142,10 @@ func (l *{{.Name}}) LoadAll(keys []{{.KeyType}}) ([]{{.ValType.String}}, []error
 // LoadAllThunk returns a function that when called will block waiting for a {{.ValType.Name}}s.
 // This method should be used if you want one goroutine to make requests to many
 // different data loaders without blocking until the thunk is called.
-func (l *{{.Name}}) LoadAllThunk(keys []{{.KeyType}}) (func() ([]{{.ValType.String}}, []error)) {
+func (l *{{.Name}}) LoadAllThunk(ctx context.Context, keys []{{.KeyType}}) (func() ([]{{.ValType.String}}, []error)) {
 	results := make([]func() ({{.ValType.String}}, error), len(keys))
  	for i, key := range keys {
-		results[i] = l.LoadThunk(key)
+		results[i] = l.LoadThunk(ctx, key)
 	}
 	return func() ([]{{.ValType.String}}, []error) {
 		{{.ValType.Name|lcFirst}}s := make([]{{.ValType.String}}, len(keys))
@@ -198,7 +199,7 @@ func (l *{{.Name}}) unsafeSet(key {{.KeyType}}, value {{.ValType.String}}) {
 
 // keyIndex will return the location of the key in the batch, if its not found
 // it will add the key to the batch
-func (b *{{.Name|lcFirst}}Batch) keyIndex(l *{{.Name}}, key {{.KeyType}}) int {
+func (b *{{.Name|lcFirst}}Batch) keyIndex(ctx context.Context, l *{{.Name}}, key {{.KeyType}}) int {
 	for i, existingKey := range b.keys {
 		if key == existingKey {
 			return i
@@ -208,21 +209,21 @@ func (b *{{.Name|lcFirst}}Batch) keyIndex(l *{{.Name}}, key {{.KeyType}}) int {
 	pos := len(b.keys)
 	b.keys = append(b.keys, key)
 	if pos == 0 {
-		go b.startTimer(l)
+		go b.startTimer(ctx, l)
 	}
 
 	if l.maxBatch != 0 && pos >= l.maxBatch-1 {
 		if !b.closing {
 			b.closing = true
 			l.batch = nil
-			go b.end(l)
+			go b.end(ctx, l)
 		}
 	}
 
 	return pos
 }
 
-func (b *{{.Name|lcFirst}}Batch) startTimer(l *{{.Name}}) {
+func (b *{{.Name|lcFirst}}Batch) startTimer(ctx context.Context, l *{{.Name}}) {
 	time.Sleep(l.wait)
 	l.mu.Lock()
 
@@ -235,11 +236,11 @@ func (b *{{.Name|lcFirst}}Batch) startTimer(l *{{.Name}}) {
 	l.batch = nil
 	l.mu.Unlock()
 
-	b.end(l)
+	b.end(ctx, l)
 }
 
-func (b *{{.Name|lcFirst}}Batch) end(l *{{.Name}}) {
-	b.data, b.error = l.fetch(b.keys)
+func (b *{{.Name|lcFirst}}Batch) end(ctx context.Context, l *{{.Name}}) {
+	b.data, b.error = l.fetch(ctx, b.keys)
 	close(b.done)
 }
 `))
